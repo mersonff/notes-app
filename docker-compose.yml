@@ -1,0 +1,74 @@
+# Local production-like orchestration.
+#
+# Usage:
+#   cp .env.example .env       # then edit secrets
+#   docker compose up --build  # web at http://localhost:8080
+#
+# Service map:
+#   db   -> PostgreSQL 16 (notes_app database)
+#   api  -> Rails 8.1 (Thruster + Puma) on port 80 inside the network
+#   web  -> nginx serving the Vue SPA + reverse-proxying /api & /up
+#
+# Secrets and tunables are read from the .env file at the repo root
+# (12-factor; image is identical across environments).
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-notes_app_production}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      RAILS_ENV: production
+      # Compose the connection URL from the same vars used by the db service.
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-notes_app_production}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:?SECRET_KEY_BASE is required — generate with bin/rails secret}
+      RAILS_LOG_TO_STDOUT: "true"
+      RAILS_LOG_LEVEL: ${RAILS_LOG_LEVEL:-info}
+      # Local compose runs over plain HTTP — disable SSL enforcement.
+      RAILS_ASSUME_SSL: "false"
+      RAILS_FORCE_SSL: "false"
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+      PAGY_DEFAULT_ITEMS: ${PAGY_DEFAULT_ITEMS:-20}
+      PAGY_MAX_ITEMS: ${PAGY_MAX_ITEMS:-100}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:80/up || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        # Empty -> SPA hits relative /api/* (nginx proxies to the api service).
+        VITE_API_URL: ""
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8080}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  db-data:

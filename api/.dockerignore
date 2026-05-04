@@ -30,3 +30,7 @@
 # Ignore Docker-related files
 /.dockerignore
 /Dockerfile*
+
+# Ignore tests (production image doesn't need them)
+/spec
+/.rspec
