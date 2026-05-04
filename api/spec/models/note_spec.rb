@@ -87,7 +87,7 @@ RSpec.describe Note, type: :model do
       newer  = create(:note, created_at: 1.hour.ago)
       newest = create(:note, created_at: 1.hour.ago)
 
-      expect(described_class.recent_first.to_a).to eq([newest, newer, older])
+      expect(described_class.recent_first.to_a).to eq([ newest, newer, older ])
     end
   end
 

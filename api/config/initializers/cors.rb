@@ -18,7 +18,7 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
     resource "/api/*",
       headers: :any,
       methods: %i[get post put patch delete options head],
-      expose: %w[link current-page page-limit total-pages total-count],
+      expose: %w[link current-page page-items total-pages total-count],
       max_age: 600
   end
 end
