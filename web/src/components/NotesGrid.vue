@@ -118,7 +118,7 @@ function confirmDelete(note: Note) {
       :rows="rows"
       :total-records="totalRecords"
       :first="first"
-      :rows-per-page-options="[6, 12, 24, 48]"
+      :rows-per-page-options="[10, 20, 50, 100]"
       template="FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink RowsPerPageDropdown"
       :current-page-report-template="`{currentPage} / {totalPages}`"
       data-testid="notes-paginator"
