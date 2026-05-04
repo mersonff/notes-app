@@ -1,0 +1,41 @@
+{
+  "app": {
+    "title": "Anotações",
+    "subtitle": "Sistema simples de anotações"
+  },
+  "note": {
+    "title": "Título",
+    "content": "Conteúdo",
+    "createdAt": "Criada em",
+    "placeholders": {
+      "title": "Digite o título",
+      "content": "Digite o conteúdo..."
+    }
+  },
+  "actions": {
+    "save": "Salvar",
+    "saving": "Salvando...",
+    "retry": "Tentar novamente"
+  },
+  "form": {
+    "newNote": "Nova anotação",
+    "validation": {
+      "titleRequired": "Título é obrigatório",
+      "titleTooLong": "Título deve ter no máximo {max} caracteres",
+      "contentTooLong": "Conteúdo deve ter no máximo {max} caracteres"
+    }
+  },
+  "list": {
+    "heading": "Anotações",
+    "empty": "Nenhuma anotação ainda. Crie a primeira acima.",
+    "loading": "Carregando...",
+    "loadError": "Não foi possível carregar as anotações."
+  },
+  "toast": {
+    "createdTitle": "Anotação criada",
+    "createdDetail": "Sua anotação foi salva com sucesso.",
+    "errorTitle": "Erro",
+    "validationErrorDetail": "Por favor corrija os campos destacados.",
+    "networkErrorDetail": "Não foi possível conectar ao servidor."
+  }
+}

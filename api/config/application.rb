@@ -1,0 +1,68 @@
+require_relative "boot"
+
+require "rails"
+# Pick the frameworks you want:
+require "active_model/railtie"
+require "active_job/railtie"
+require "active_record/railtie"
+# require "active_storage/engine"
+require "action_controller/railtie"
+require "action_mailer/railtie"
+# require "action_mailbox/engine"
+# require "action_text/engine"
+require "action_view/railtie"
+# require "action_cable/engine"
+# require "rails/test_unit/railtie"
+
+# Require the gems listed in Gemfile, including any gems
+# you've limited to :test, :development, or :production.
+Bundler.require(*Rails.groups)
+
+module Api
+  class Application < Rails::Application
+    # Initialize configuration defaults for originally generated Rails version.
+    config.load_defaults 8.1
+
+    # Please, add to the `ignore` list any other `lib` subdirectories that do
+    # not contain `.rb` files, or that should not be reloaded or eager loaded.
+    # Common ones are `templates`, `generators`, or `middleware`, for example.
+    config.autoload_lib(ignore: %w[assets tasks])
+
+    # Configuration for the application, engines, and railties goes here.
+    #
+    # These settings can be overridden in specific environments using the files
+    # in config/environments, which are processed later.
+    #
+    # config.time_zone = "Central Time (US & Canada)"
+    # config.eager_load_paths << Rails.root.join("extras")
+
+    # Only loads a smaller set of middleware suitable for API only apps.
+    # Middleware like session, flash, cookies can be added back manually.
+    # Skip views, helpers and assets when generating a new resource.
+    config.api_only = true
+
+    # 12-factor: secrets are passed via SECRET_KEY_BASE/CORS_ORIGINS/etc
+    # rather than encrypted credentials, so we don't need (and don't ship)
+    # a master.key. Disabling the requirement keeps the production Docker
+    # image runnable with nothing but env vars.
+    config.require_master_key = false
+
+    # I18n: pt-BR is the primary locale, English is the fallback.
+    config.i18n.available_locales = %i[pt-BR en]
+    config.i18n.default_locale = :"pt-BR"
+    config.i18n.fallbacks = [ :en ]
+
+    # Generators: prefer RSpec + FactoryBot and skip ancillary files
+    # we do not use in an API-only app.
+    config.generators do |g|
+      g.test_framework :rspec,
+        view_specs: false,
+        helper_specs: false,
+        routing_specs: false,
+        request_specs: true
+      g.fixture_replacement :factory_bot, dir: "spec/factories"
+      g.helper false
+      g.assets false
+    end
+  end
+end

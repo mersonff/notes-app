@@ -1,0 +1,41 @@
+{
+  "app": {
+    "title": "Notes",
+    "subtitle": "Simple notes system"
+  },
+  "note": {
+    "title": "Title",
+    "content": "Content",
+    "createdAt": "Created at",
+    "placeholders": {
+      "title": "Enter the title",
+      "content": "Enter the content..."
+    }
+  },
+  "actions": {
+    "save": "Save",
+    "saving": "Saving...",
+    "retry": "Retry"
+  },
+  "form": {
+    "newNote": "New note",
+    "validation": {
+      "titleRequired": "Title is required",
+      "titleTooLong": "Title must be at most {max} characters",
+      "contentTooLong": "Content must be at most {max} characters"
+    }
+  },
+  "list": {
+    "heading": "Notes",
+    "empty": "No notes yet. Create the first one above.",
+    "loading": "Loading...",
+    "loadError": "Could not load notes."
+  },
+  "toast": {
+    "createdTitle": "Note created",
+    "createdDetail": "Your note was saved successfully.",
+    "errorTitle": "Error",
+    "validationErrorDetail": "Please fix the highlighted fields.",
+    "networkErrorDetail": "Could not reach the server."
+  }
+}

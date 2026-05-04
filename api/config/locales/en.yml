@@ -1,0 +1,18 @@
+en:
+  activerecord:
+    models:
+      note:
+        one: Note
+        other: Notes
+    attributes:
+      note:
+        title: Title
+        content: Content
+        created_at: Created at
+        updated_at: Updated at
+
+  api:
+    errors:
+      malformed_json: "Invalid JSON in request body."
+      invalid_pagination: "Invalid pagination parameters."
+      not_found: "Resource not found."
