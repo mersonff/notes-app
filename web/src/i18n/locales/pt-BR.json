@@ -12,7 +12,8 @@
     "noContent": "(sem conteúdo)",
     "placeholders": {
       "title": "Digite o título",
-      "content": "Digite o conteúdo..."
+      "content": "Digite o conteúdo...",
+      "search": "Buscar por título ou conteúdo..."
     }
   },
   "actions": {
@@ -24,7 +25,8 @@
     "deleting": "Excluindo...",
     "confirm": "Confirmar",
     "newNote": "Nova anotação",
-    "retry": "Tentar novamente"
+    "retry": "Tentar novamente",
+    "clearSearch": "Limpar busca"
   },
   "form": {
     "newNote": "Nova anotação",
@@ -42,9 +44,14 @@
       "subtitle": "Comece criando sua primeira anotação.",
       "cta": "Criar primeira anotação"
     },
+    "noResults": {
+      "title": "Nenhum resultado para \"{query}\"",
+      "subtitle": "Tente outros termos ou limpe a busca."
+    },
     "loading": "Carregando...",
     "loadError": "Não foi possível carregar as anotações.",
-    "totalCount": "{count} anotação | {count} anotações"
+    "totalCount": "{count} anotação | {count} anotações",
+    "totalCountFiltered": "{count} resultado para \"{query}\" | {count} resultados para \"{query}\""
   },
   "confirm": {
     "delete": {
