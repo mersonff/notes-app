@@ -7,7 +7,8 @@ import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 import Button from 'primevue/button'
 import Message from 'primevue/message'
-import { useNotesStore } from '@/stores/notes'
+import { ApiError } from '@/api/notes'
+import { useCreateNoteMutation, useUpdateNoteMutation } from '@/composables/useNotesMutations'
 import { NOTE_LIMITS, type Note } from '@/types/note'
 
 const props = defineProps<{
@@ -23,7 +24,9 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const toast = useToast()
-const store = useNotesStore()
+
+const createMutation = useCreateNoteMutation()
+const updateMutation = useUpdateNoteMutation()
 
 const title = ref('')
 const content = ref('')
@@ -31,6 +34,14 @@ const submitted = ref(false)
 
 const isEditing = computed(() => props.note !== null)
 const dialogHeader = computed(() => (isEditing.value ? t('form.editNote') : t('form.newNote')))
+const submitting = computed(() => createMutation.isLoading.value || updateMutation.isLoading.value)
+
+// Pull per-field validation errors from whichever mutation is active.
+// ApiError carries `validationErrors: Record<string, string[]>` on 422.
+const validationErrors = computed<Record<string, string[]>>(() => {
+  const err = isEditing.value ? updateMutation.error.value : createMutation.error.value
+  return err instanceof ApiError && err.validationErrors ? err.validationErrors : {}
+})
 
 const titleMessages = computed<string[]>(() => {
   const msgs: string[] = []
@@ -40,7 +51,7 @@ const titleMessages = computed<string[]>(() => {
   if (title.value.length > NOTE_LIMITS.TITLE_MAX) {
     msgs.push(t('form.validation.titleTooLong', { max: NOTE_LIMITS.TITLE_MAX }))
   }
-  store.validationErrors.title?.forEach((m) => msgs.push(m))
+  validationErrors.value.title?.forEach((m) => msgs.push(m))
   return msgs
 })
 
@@ -49,7 +60,7 @@ const contentMessages = computed<string[]>(() => {
   if (content.value.length > NOTE_LIMITS.CONTENT_MAX) {
     msgs.push(t('form.validation.contentTooLong', { max: NOTE_LIMITS.CONTENT_MAX }))
   }
-  store.validationErrors.content?.forEach((m) => msgs.push(m))
+  validationErrors.value.content?.forEach((m) => msgs.push(m))
   return msgs
 })
 
@@ -61,7 +72,8 @@ const isClientValid = computed(
 )
 
 // When the dialog opens (or the editing target changes), seed the inputs from
-// props.note. When it closes, wipe state so the next open starts clean.
+// props.note. Reset stale errors from the previous mutation attempt so they
+// don't surface against a fresh form.
 watch(
   () => [props.visible, props.note?.id] as const,
   ([visible]) => {
@@ -69,7 +81,8 @@ watch(
       title.value = props.note?.title ?? ''
       content.value = props.note?.content ?? ''
       submitted.value = false
-      store.clearValidationErrors()
+      createMutation.reset()
+      updateMutation.reset()
     }
   },
   { immediate: true }
@@ -88,11 +101,11 @@ async function submit() {
     content: content.value.length > 0 ? content.value : null
   }
 
-  const result = isEditing.value
-    ? await store.update(props.note!.id, payload)
-    : await store.create(payload)
+  try {
+    const result = isEditing.value
+      ? await updateMutation.mutateAsync({ id: props.note!.id, input: payload })
+      : await createMutation.mutateAsync(payload)
 
-  if (result) {
     toast.add({
       severity: 'success',
       summary: t(isEditing.value ? 'toast.updatedTitle' : 'toast.createdTitle'),
@@ -101,23 +114,22 @@ async function submit() {
     })
     emit('saved', result)
     close()
-    return
-  }
-
-  if (Object.keys(store.validationErrors).length > 0) {
-    toast.add({
-      severity: 'error',
-      summary: t('toast.errorTitle'),
-      detail: t('toast.validationErrorDetail'),
-      life: 4000
-    })
-  } else {
-    toast.add({
-      severity: 'error',
-      summary: t('toast.errorTitle'),
-      detail: store.submitError ?? t('toast.networkErrorDetail'),
-      life: 4000
-    })
+  } catch (err) {
+    if (err instanceof ApiError && err.validationErrors) {
+      toast.add({
+        severity: 'error',
+        summary: t('toast.errorTitle'),
+        detail: t('toast.validationErrorDetail'),
+        life: 4000
+      })
+    } else {
+      toast.add({
+        severity: 'error',
+        summary: t('toast.errorTitle'),
+        detail: err instanceof Error && err.message ? err.message : t('toast.networkErrorDetail'),
+        life: 4000
+      })
+    }
   }
 }
 </script>
@@ -127,9 +139,9 @@ async function submit() {
     :visible="visible"
     :header="dialogHeader"
     modal
-    :closable="!store.submitting"
-    :close-on-escape="!store.submitting"
-    :dismissable-mask="!store.submitting"
+    :closable="!submitting"
+    :close-on-escape="!submitting"
+    :dismissable-mask="!submitting"
     :style="{ width: '32rem', maxWidth: '95vw' }"
     data-testid="note-form-dialog"
     @update:visible="close"
@@ -189,14 +201,14 @@ async function submit() {
         :label="t('actions.cancel')"
         severity="secondary"
         variant="text"
-        :disabled="store.submitting"
+        :disabled="submitting"
         data-testid="note-cancel"
         @click="close"
       />
       <Button
         type="submit"
-        :label="store.submitting ? t('actions.saving') : t('actions.save')"
-        :loading="store.submitting"
+        :label="submitting ? t('actions.saving') : t('actions.save')"
+        :loading="submitting"
         icon="pi pi-check"
         data-testid="note-save"
         @click="submit"

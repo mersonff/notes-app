@@ -4,16 +4,28 @@ import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import NotesGrid from '@/components/NotesGrid.vue'
 import NoteFormDialog from '@/components/NoteFormDialog.vue'
-import { useNotesStore } from '@/stores/notes'
+import { useNotesQuery } from '@/composables/useNotesQuery'
 import type { Note } from '@/types/note'
 
 const { t } = useI18n()
-const store = useNotesStore()
 
+// UI state owned by the view (would map cleanly to URL query params if
+// we ever introduced a router): current page, page size, edit target.
+const page = ref(1)
+const limit = ref(20)
 const dialogVisible = ref(false)
 const editingNote = ref<Note | null>(null)
 
-const totalCount = computed(() => store.pagination?.count ?? 0)
+const { state, asyncStatus } = useNotesQuery({ page, limit })
+
+const notes = computed(() => state.value.data?.data ?? [])
+const pagination = computed(() => state.value.data?.pagination ?? null)
+const loading = computed(() => asyncStatus.value === 'loading')
+const loadError = computed(() =>
+  state.value.status === 'error' ? state.value.error.message : null
+)
+
+const totalCount = computed(() => pagination.value?.count ?? 0)
 const showCount = computed(() => totalCount.value > 0)
 
 function openCreate() {
@@ -25,15 +37,15 @@ function openEdit(note: Note) {
   editingNote.value = note
   dialogVisible.value = true
 }
+
+function onPageChange(event: { page: number; rows: number }) {
+  page.value = event.page
+  limit.value = event.rows
+}
 </script>
 
 <template>
   <div class="notes-view">
-    <!--
-      No section heading here — the page-level <h1> in App.vue already
-      identifies the screen. This bar is purely a toolbar (count + the
-      primary action).
-    -->
     <div class="notes-view__toolbar">
       <span v-if="showCount" class="notes-view__count" data-testid="notes-count">
         {{ t('list.totalCount', totalCount) }}
@@ -47,7 +59,15 @@ function openEdit(note: Note) {
       />
     </div>
 
-    <NotesGrid @create="openCreate" @edit="openEdit" />
+    <NotesGrid
+      :notes="notes"
+      :pagination="pagination"
+      :loading="loading"
+      :load-error="loadError"
+      @create="openCreate"
+      @edit="openEdit"
+      @page="onPageChange"
+    />
 
     <NoteFormDialog v-model:visible="dialogVisible" :note="editingNote" />
   </div>
