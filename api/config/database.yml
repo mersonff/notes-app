@@ -1,0 +1,23 @@
+# PostgreSQL configuration.
+#
+# 12-factor: connection details come from DATABASE_URL (and TEST_DATABASE_URL
+# for the test environment). Rails merges those URLs on top of the values
+# below, so the YAML acts only as a sane local default — production never
+# relies on it.
+#
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+
+development:
+  <<: *default
+  url: <%= ENV.fetch("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/notes_app_development") %>
+
+test:
+  <<: *default
+  url: <%= ENV.fetch("TEST_DATABASE_URL", "postgres://postgres:postgres@localhost:5432/notes_app_test") %>
+
+production:
+  <<: *default
+  url: <%= ENV.fetch("DATABASE_URL") %>
