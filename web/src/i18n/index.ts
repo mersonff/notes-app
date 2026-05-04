@@ -21,6 +21,27 @@ export function resolveLocale(tag?: string | null): SupportedLocale {
 
 const browserLocale = typeof navigator !== 'undefined' ? navigator.language : DEFAULT_LOCALE
 
+const datetimeFormats = {
+  'pt-BR': {
+    short: {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    } as Intl.DateTimeFormatOptions
+  },
+  en: {
+    short: {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    } as Intl.DateTimeFormatOptions
+  }
+}
+
 export const i18n = createI18n<false>({
   legacy: false,
   locale: resolveLocale(browserLocale),
@@ -28,5 +49,6 @@ export const i18n = createI18n<false>({
   messages: {
     'pt-BR': ptBR,
     en
-  }
+  },
+  datetimeFormats
 })
