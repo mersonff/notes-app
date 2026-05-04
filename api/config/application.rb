@@ -41,6 +41,12 @@ module Api
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
 
+    # 12-factor: secrets are passed via SECRET_KEY_BASE/CORS_ORIGINS/etc
+    # rather than encrypted credentials, so we don't need (and don't ship)
+    # a master.key. Disabling the requirement keeps the production Docker
+    # image runnable with nothing but env vars.
+    config.require_master_key = false
+
     # I18n: pt-BR is the primary locale, English is the fallback.
     config.i18n.available_locales = %i[pt-BR en]
     config.i18n.default_locale = :"pt-BR"
