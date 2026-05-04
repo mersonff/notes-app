@@ -14,6 +14,22 @@ class Note < ApplicationRecord
 
   scope :recent_first, -> { order(created_at: :desc, id: :desc) }
 
+  # Case-insensitive substring match on title OR content. Returns the
+  # full relation untouched when the query is blank so the caller can
+  # always chain it without checking. Wildcards in the input are
+  # escaped (sanitize_sql_like) so users can search for literal
+  # `%` and `_` without those acting as LIKE wildcards.
+  #
+  # Note: accent-sensitive (PostgreSQL ILIKE on the raw column).
+  # The `unaccent` extension would be the upgrade path if accent-
+  # insensitive matching becomes necessary.
+  scope :search, ->(query) {
+    next all if query.blank?
+
+    pattern = "%#{sanitize_sql_like(query.to_s.strip)}%"
+    where("title ILIKE :p OR content ILIKE :p", p: pattern)
+  }
+
   private
 
   # Strip surrounding whitespace before validation runs. Rails' `blank?`
