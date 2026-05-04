@@ -91,6 +91,65 @@ RSpec.describe Note, type: :model do
     end
   end
 
+  describe ".search" do
+    let!(:meeting) { create(:note, title: "Reunião de produto", content: "Pauta: roadmap") }
+    let!(:grocery) { create(:note, title: "Compras", content: "Banana, café, pão") }
+    let!(:book)    { create(:note, title: "Livro: Refactoring", content: nil) }
+
+    it "matches a substring of the title (case-insensitive)" do
+      # Accent-sensitive — documented as a known limitation
+      expect(described_class.search("reuniao")).to be_empty
+      expect(described_class.search("reunião")).to contain_exactly(meeting)
+      expect(described_class.search("REUNIÃO")).to contain_exactly(meeting)
+      expect(described_class.search("uniã")).to contain_exactly(meeting)
+    end
+
+    it "matches a substring of the content" do
+      expect(described_class.search("café")).to contain_exactly(grocery)
+      expect(described_class.search("roadmap")).to contain_exactly(meeting)
+    end
+
+    it "matches across both title and content (returns either)" do
+      expect(described_class.search("pauta")).to contain_exactly(meeting)
+      expect(described_class.search("compras")).to contain_exactly(grocery)
+    end
+
+    it "returns multiple notes when many match" do
+      common = create(:note, title: "Outro item de produto", content: nil)
+      expect(described_class.search("produto")).to contain_exactly(meeting, common)
+    end
+
+    it "returns the full relation when the query is blank, nil or whitespace-only" do
+      [ nil, "", "   ", "\t\n" ].each do |q|
+        expect(described_class.search(q).count).to eq(described_class.count)
+      end
+    end
+
+    it "treats the query as a literal — wildcards in the input are escaped" do
+      # Without escaping, `%` would match everything; sanitised, it's literal.
+      pct = create(:note, title: "Title with literal % char")
+      und = create(:note, title: "Title with literal _ char")
+
+      expect(described_class.search("%")).to contain_exactly(pct)
+      expect(described_class.search("_")).to contain_exactly(und)
+    end
+
+    it "is chainable with .recent_first" do
+      newer = create(:note, title: "Reunião nova", created_at: 1.minute.from_now)
+
+      expect(described_class.search("reunião").recent_first.to_a).to eq([ newer, meeting ])
+    end
+
+    it "does not raise on a single-character query" do
+      expect { described_class.search("a").to_a }.not_to raise_error
+    end
+
+    it "ignores the book note in matches that don't appear in its title or nil content" do
+      # Sanity: search doesn't crash on records with NULL content
+      expect(described_class.search("Refactoring")).to contain_exactly(book)
+    end
+  end
+
   describe "i18n integration" do
     it "renders the title attribute name in pt-BR" do
       I18n.with_locale(:"pt-BR") do
