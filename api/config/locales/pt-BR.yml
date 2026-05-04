@@ -1,0 +1,18 @@
+pt-BR:
+  activerecord:
+    models:
+      note:
+        one: Anotação
+        other: Anotações
+    attributes:
+      note:
+        title: Título
+        content: Conteúdo
+        created_at: Criada em
+        updated_at: Atualizada em
+
+  api:
+    errors:
+      malformed_json: "JSON inválido no corpo da requisição."
+      invalid_pagination: "Parâmetros de paginação inválidos."
+      not_found: "Recurso não encontrado."
