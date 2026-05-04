@@ -40,5 +40,23 @@ module Api
     # Middleware like session, flash, cookies can be added back manually.
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
+
+    # I18n: pt-BR is the primary locale, English is the fallback.
+    config.i18n.available_locales = %i[pt-BR en]
+    config.i18n.default_locale = :"pt-BR"
+    config.i18n.fallbacks = [:en]
+
+    # Generators: prefer RSpec + FactoryBot and skip ancillary files
+    # we do not use in an API-only app.
+    config.generators do |g|
+      g.test_framework :rspec,
+        view_specs: false,
+        helper_specs: false,
+        routing_specs: false,
+        request_specs: true
+      g.fixture_replacement :factory_bot, dir: "spec/factories"
+      g.helper false
+      g.assets false
+    end
   end
 end

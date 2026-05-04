@@ -31,4 +31,15 @@ group :development, :test do
 
   # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
   gem "rubocop-rails-omakase", require: false
+
+  # RSpec for behavior-driven testing
+  gem "rspec-rails", "~> 8.0"
+
+  # Replaces fixtures with factories
+  gem "factory_bot_rails", "~> 6.4"
+end
+
+group :test do
+  # One-liner matchers for ActiveModel/ActiveRecord
+  gem "shoulda-matchers", "~> 6.4"
 end
