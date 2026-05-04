@@ -1,0 +1,35 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Logs
+*.log
+
+# Coverage / build artifacts
+coverage/
+.nyc_output/
+dist/
+build/
+
+# Node
+node_modules/
+
+# Ruby (kept here for safety; api/.gitignore is authoritative for the Rails app)
+*.gem
+.bundle/
+vendor/bundle/
+log/*.log
+tmp/
