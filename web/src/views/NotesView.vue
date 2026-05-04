@@ -55,6 +55,17 @@ const totalCount = computed(() => pagination.value?.count ?? 0)
 const hasActiveSearch = computed(() => searchActive.value.trim().length > 0)
 const showCount = computed(() => totalCount.value > 0)
 
+// Two phases of "search in progress" worth feedback for:
+//   - debouncing: user typed but the watch hasn't fired yet
+//   - fetching:   query dispatched, awaiting the API
+// We don't show the spinner for unrelated fetches (initial page load,
+// pagination) — only for explicit user search activity.
+const isSearching = computed(() => {
+  const debouncing = searchInput.value.length > 0 && searchInput.value !== searchActive.value
+  const fetchingSearch = loading.value && hasActiveSearch.value
+  return debouncing || fetchingSearch
+})
+
 // Different copy when there's a search filter active (e.g. "3 resultados
 // para 'reunião'" vs "3 anotações").
 const countLabel = computed(() => {
@@ -96,8 +107,14 @@ function clearSearch() {
           aria-label="Buscar"
           data-testid="notes-search"
         />
+        <i
+          v-if="isSearching"
+          class="pi pi-spin pi-spinner notes-view__search-spinner"
+          aria-hidden="true"
+          data-testid="notes-search-spinner"
+        />
         <button
-          v-if="searchInput.length > 0"
+          v-else-if="searchInput.length > 0"
           type="button"
           class="notes-view__search-clear"
           :aria-label="t('actions.clearSearch')"
@@ -181,6 +198,16 @@ function clearSearch() {
   color: var(--p-text-color, #111);
   background: var(--p-surface-100, rgba(0, 0, 0, 0.05));
   outline: none;
+}
+
+.notes-view__search-spinner {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--p-primary-color, #6366f1);
+  font-size: 0.95rem;
+  pointer-events: none;
 }
 
 .notes-view__count {
