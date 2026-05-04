@@ -220,4 +220,152 @@ RSpec.describe "Api::V1::Notes", type: :request do
       end
     end
   end
+
+  describe "GET /api/v1/notes/:id" do
+    let(:note) { create(:note, title: "Reunião", content: "Pauta") }
+
+    it "returns 200 with the serialized note" do
+      get "/api/v1/notes/#{note.id}"
+
+      expect(response).to have_http_status(:ok)
+      body = response.parsed_body["data"]
+      expect(body).to include("id" => note.id, "title" => "Reunião", "content" => "Pauta")
+    end
+
+    it "returns 404 with a translated message when the note does not exist" do
+      get "/api/v1/notes/999999", headers: { "Accept-Language" => "pt-BR" }
+
+      expect(response).to have_http_status(:not_found)
+      expect(response.parsed_body["error"]).to eq("Recurso não encontrado.")
+    end
+
+    it "returns the 404 message in English when Accept-Language: en" do
+      get "/api/v1/notes/999999", headers: { "Accept-Language" => "en" }
+
+      expect(response).to have_http_status(:not_found)
+      expect(response.parsed_body["error"]).to eq("Resource not found.")
+    end
+  end
+
+  describe "PATCH /api/v1/notes/:id" do
+    let!(:note) { create(:note, title: "Original", content: "Initial") }
+
+    context "with valid attributes" do
+      it "updates the note and returns 200 with the new payload" do
+        patch "/api/v1/notes/#{note.id}",
+              params: { note: { title: "Updated", content: "Changed" } }
+
+        expect(response).to have_http_status(:ok)
+        body = response.parsed_body["data"]
+        expect(body).to include("title" => "Updated", "content" => "Changed")
+        expect(note.reload.title).to eq("Updated")
+      end
+
+      it "supports partial updates (PATCH semantics — only sent fields change)" do
+        patch "/api/v1/notes/#{note.id}", params: { note: { content: "Only content changed" } }
+
+        expect(response).to have_http_status(:ok)
+        note.reload
+        expect(note.title).to eq("Original")
+        expect(note.content).to eq("Only content changed")
+      end
+
+      it "allows clearing the content (sending null)" do
+        patch "/api/v1/notes/#{note.id}", params: { note: { content: nil } }
+
+        expect(response).to have_http_status(:ok)
+        expect(note.reload.content).to be_nil
+      end
+
+      it "strips whitespace from the title on update too" do
+        patch "/api/v1/notes/#{note.id}", params: { note: { title: "  Trimmed  " } }
+
+        expect(response).to have_http_status(:ok)
+        expect(note.reload.title).to eq("Trimmed")
+      end
+    end
+
+    context "with invalid attributes" do
+      it "returns 422 and does not persist the change when title becomes blank" do
+        patch "/api/v1/notes/#{note.id}",
+              params: { note: { title: "" } },
+              headers: { "Accept-Language" => "pt-BR" }
+
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.parsed_body["errors"]).to have_key("title")
+        expect(note.reload.title).to eq("Original")
+      end
+
+      it "returns 422 when the title exceeds the max length" do
+        patch "/api/v1/notes/#{note.id}",
+              params: { note: { title: "T" * (Note::TITLE_MAX_LENGTH + 1) } }
+
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(note.reload.title).to eq("Original")
+      end
+
+      it "returns 422 when content exceeds the max length" do
+        patch "/api/v1/notes/#{note.id}",
+              params: { note: { content: "C" * (Note::CONTENT_MAX_LENGTH + 1) } }
+
+        expect(response).to have_http_status(:unprocessable_content)
+      end
+    end
+
+    context "with a missing note" do
+      it "returns 404 with a translated message" do
+        patch "/api/v1/notes/999999",
+              params: { note: { title: "x" } },
+              headers: { "Accept-Language" => "pt-BR" }
+
+        expect(response).to have_http_status(:not_found)
+        expect(response.parsed_body["error"]).to eq("Recurso não encontrado.")
+      end
+    end
+
+    context "with malformed input" do
+      it "returns 400 when the note key is missing entirely" do
+        patch "/api/v1/notes/#{note.id}", params: { foo: "bar" }
+
+        expect(response).to have_http_status(:bad_request)
+      end
+
+      it "ignores unknown attributes" do
+        patch "/api/v1/notes/#{note.id}",
+              params: { note: { title: "Updated", admin: true, id: 999 } }
+
+        expect(response).to have_http_status(:ok)
+        # id from the URL takes precedence; the body's id is dropped by strong-params
+        expect(note.reload.id).not_to eq(999)
+      end
+    end
+  end
+
+  describe "DELETE /api/v1/notes/:id" do
+    let!(:note) { create(:note) }
+
+    it "deletes the note and returns 204 No Content" do
+      expect {
+        delete "/api/v1/notes/#{note.id}"
+      }.to change(Note, :count).by(-1)
+
+      expect(response).to have_http_status(:no_content)
+      expect(response.body).to be_empty
+    end
+
+    it "returns 404 when the note does not exist" do
+      delete "/api/v1/notes/999999", headers: { "Accept-Language" => "pt-BR" }
+
+      expect(response).to have_http_status(:not_found)
+      expect(response.parsed_body["error"]).to eq("Recurso não encontrado.")
+    end
+
+    it "is non-idempotent at the resource level: deleting twice returns 404 the second time" do
+      delete "/api/v1/notes/#{note.id}"
+      expect(response).to have_http_status(:no_content)
+
+      delete "/api/v1/notes/#{note.id}"
+      expect(response).to have_http_status(:not_found)
+    end
+  end
 end
