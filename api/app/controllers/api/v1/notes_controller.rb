@@ -6,6 +6,8 @@ module Api
       # parsing the JSON body.
       after_action :emit_pagination_headers, only: :index
 
+      before_action :load_note, only: %i[show update destroy]
+
       def index
         @pagy, notes = pagy(Note.recent_first, page: safe_page, limit: safe_limit)
 
@@ -13,6 +15,10 @@ module Api
           data: notes.map { |note| serialize(note) },
           pagination: pagy_metadata(@pagy)
         }
+      end
+
+      def show
+        render json: { data: serialize(@note) }
       end
 
       def create
@@ -26,7 +32,27 @@ module Api
         end
       end
 
+      def update
+        if @note.update(note_params)
+          render json: { data: serialize(@note) }
+        else
+          render json: { errors: @note.errors.as_json(full_messages: false) },
+                 status: :unprocessable_content
+        end
+      end
+
+      def destroy
+        @note.destroy!
+        head :no_content
+      end
+
       private
+
+      # Loads the requested note or surfaces a 404 via the global
+      # ActiveRecord::RecordNotFound rescue in ApplicationController.
+      def load_note
+        @note = Note.find(params[:id])
+      end
 
       def note_params
         params.expect(note: [ :title, :content ])

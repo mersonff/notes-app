@@ -10,12 +10,16 @@ vi.mock('@/api/notes', async () => {
   return {
     ...actual,
     listNotes: vi.fn(),
-    createNote: vi.fn()
+    createNote: vi.fn(),
+    updateNote: vi.fn(),
+    deleteNote: vi.fn()
   }
 })
 
 const mockedListNotes = vi.mocked(api.listNotes)
 const mockedCreateNote = vi.mocked(api.createNote)
+const mockedUpdateNote = vi.mocked(api.updateNote)
+const mockedDeleteNote = vi.mocked(api.deleteNote)
 
 const samplePage = (overrides: Partial<NotesPage> = {}): NotesPage => ({
   data: [
@@ -31,6 +35,8 @@ describe('useNotesStore', () => {
     setActivePinia(createPinia())
     mockedListNotes.mockReset()
     mockedCreateNote.mockReset()
+    mockedUpdateNote.mockReset()
+    mockedDeleteNote.mockReset()
   })
 
   describe('fetchPage', () => {
@@ -169,6 +175,139 @@ describe('useNotesStore', () => {
       resolveCreate(created)
       await promise
       expect(store.submitting).toBe(false)
+    })
+  })
+
+  describe('update', () => {
+    const updated: Note = {
+      id: 7,
+      title: 'Updated',
+      content: 'New content',
+      created_at: '',
+      updated_at: ''
+    }
+
+    it('returns the updated note and refreshes the current page on success', async () => {
+      mockedUpdateNote.mockResolvedValueOnce(updated)
+      mockedListNotes.mockResolvedValueOnce(samplePage())
+      const store = useNotesStore()
+
+      const result = await store.update(7, { title: 'Updated', content: 'New content' })
+
+      expect(result).toEqual(updated)
+      expect(mockedUpdateNote).toHaveBeenCalledWith(7, { title: 'Updated', content: 'New content' })
+      expect(mockedListNotes).toHaveBeenCalledOnce()
+      expect(store.submitError).toBeNull()
+      expect(store.validationErrors).toEqual({})
+    })
+
+    it('populates validationErrors on a 422 and returns null', async () => {
+      mockedUpdateNote.mockRejectedValueOnce(
+        new ApiError('Validation failed', {
+          status: 422,
+          validationErrors: { title: ['too long'] }
+        })
+      )
+      const store = useNotesStore()
+
+      const result = await store.update(7, { title: '' })
+
+      expect(result).toBeNull()
+      expect(store.validationErrors).toEqual({ title: ['too long'] })
+      expect(store.submitError).toBeNull()
+    })
+
+    it('sets submitError on a 404 (note disappeared between page-load and edit)', async () => {
+      mockedUpdateNote.mockRejectedValueOnce(
+        new ApiError('Recurso não encontrado.', { status: 404 })
+      )
+      const store = useNotesStore()
+
+      const result = await store.update(7, { title: 'x' })
+
+      expect(result).toBeNull()
+      expect(store.submitError).toBe('Recurso não encontrado.')
+    })
+
+    it('clears any previous validationErrors before a new attempt', async () => {
+      const store = useNotesStore()
+      store.validationErrors = { title: ['stale'] }
+
+      mockedUpdateNote.mockResolvedValueOnce(updated)
+      mockedListNotes.mockResolvedValueOnce(samplePage())
+
+      await store.update(7, { title: 'x' })
+
+      expect(store.validationErrors).toEqual({})
+    })
+  })
+
+  describe('destroy', () => {
+    it('returns true and refreshes the current page on success', async () => {
+      mockedDeleteNote.mockResolvedValueOnce(undefined)
+      mockedListNotes.mockResolvedValueOnce(samplePage())
+      const store = useNotesStore()
+
+      const ok = await store.destroy(7)
+
+      expect(ok).toBe(true)
+      expect(mockedDeleteNote).toHaveBeenCalledWith(7)
+      expect(mockedListNotes).toHaveBeenCalledOnce()
+      expect(store.submitError).toBeNull()
+    })
+
+    it('returns false and sets submitError on failure', async () => {
+      mockedDeleteNote.mockRejectedValueOnce(
+        new ApiError('Recurso não encontrado.', { status: 404 })
+      )
+      const store = useNotesStore()
+
+      const ok = await store.destroy(7)
+
+      expect(ok).toBe(false)
+      expect(store.submitError).toBe('Recurso não encontrado.')
+    })
+
+    it('toggles deleting around the call', async () => {
+      let resolveDelete!: () => void
+      mockedDeleteNote.mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveDelete = resolve
+          })
+      )
+      mockedListNotes.mockResolvedValueOnce(samplePage())
+      const store = useNotesStore()
+
+      const promise = store.destroy(7)
+      expect(store.deleting).toBe(true)
+
+      resolveDelete()
+      await promise
+      expect(store.deleting).toBe(false)
+    })
+
+    it('falls back to the previous page when the current page becomes empty', async () => {
+      mockedDeleteNote.mockResolvedValueOnce(undefined)
+      // First refresh after delete returns 0 items on the current page
+      mockedListNotes.mockResolvedValueOnce(
+        samplePage({
+          data: [],
+          pagination: { page: 2, limit: 20, pages: 1, count: 0, prev: 1, next: null }
+        })
+      )
+      // Second refresh (page-back) returns the previous page with data
+      mockedListNotes.mockResolvedValueOnce(samplePage())
+
+      const store = useNotesStore()
+      // Pretend the user is currently on page 2
+      store.pagination = { page: 2, limit: 20, pages: 2, count: 21, prev: 1, next: null }
+
+      await store.destroy(7)
+
+      expect(mockedListNotes).toHaveBeenCalledTimes(2)
+      expect(mockedListNotes).toHaveBeenNthCalledWith(1, { page: 2, limit: 20 })
+      expect(mockedListNotes).toHaveBeenNthCalledWith(2, { page: 1, limit: 20 })
     })
   })
 })

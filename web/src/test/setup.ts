@@ -3,6 +3,7 @@ import { createI18n } from 'vue-i18n'
 import { createPinia, setActivePinia } from 'pinia'
 import PrimeVue from 'primevue/config'
 import ToastService from 'primevue/toastservice'
+import ConfirmationService from 'primevue/confirmationservice'
 import { beforeEach, vi } from 'vitest'
 
 import ptBR from '@/i18n/locales/pt-BR.json'
@@ -39,7 +40,7 @@ const i18n = createI18n({
   datetimeFormats
 })
 
-config.global.plugins = [i18n, [PrimeVue, { theme: 'none' }], ToastService]
+config.global.plugins = [i18n, [PrimeVue, { theme: 'none' }], ToastService, ConfirmationService]
 
 // Reset Pinia between tests so stores don't leak state across cases.
 beforeEach(() => {

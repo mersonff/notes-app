@@ -3,10 +3,10 @@
 [![Backend](https://img.shields.io/badge/backend-Rails%208.1-CC0000.svg)](https://rubyonrails.org/)
 [![Frontend](https://img.shields.io/badge/frontend-Vue%203.5-42b883.svg)](https://vuejs.org/)
 [![PrimeVue](https://img.shields.io/badge/UI-PrimeVue%204-007AD9.svg)](https://primevue.org/)
-[![Tests](https://img.shields.io/badge/tests-46%20back%20%2B%2040%20front%20%2B%203%20e2e-success.svg)](#testes)
+[![Tests](https://img.shields.io/badge/tests-62%20back%20%2B%2073%20front%20%2B%206%20e2e-success.svg)](#testes)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Aplicação de anotações simples (criar e listar) implementada como exercício técnico, com foco em **qualidade do código**, **boas práticas de engenharia** (12-factor, i18n, testes além do happy path, validações em camadas, paginação, Docker) e **criticidade técnica** (riscos identificados, limitações documentadas).
+Aplicação completa de anotações (CRUD) implementada como exercício técnico, com foco em **qualidade do código**, **boas práticas de engenharia** (12-factor, i18n, testes além do happy path, validações em camadas, paginação, Docker) e **criticidade técnica** (riscos identificados, limitações documentadas).
 
 ---
 
@@ -133,16 +133,16 @@ notes-app/
 │   │   ├── initializers/pagy.rb  # limite + max + overflow + metadata
 │   │   ├── locales/pt-BR.yml     # tradução de attribute names
 │   │   └── locales/en.yml
-│   └── spec/                     # 46 examples (model + request)
+│   └── spec/                     # 62 examples (model + request)
 ├── web/                          # Vue 3 SPA
 │   ├── src/
 │   │   ├── api/                  # axios client + funções tipadas
-│   │   ├── components/           # NoteForm, NotesList
+│   │   ├── components/           # NoteCard, NotesGrid, NoteFormDialog
 │   │   ├── i18n/                 # pt-BR.json, en.json, datetime formats
-│   │   ├── stores/notes.ts       # Pinia store
+│   │   ├── stores/notes.ts       # Pinia store (CRUD + page-back)
 │   │   ├── types/note.ts         # tipos TS compartilhados
 │   │   └── views/NotesView.vue
-│   ├── e2e/                      # Playwright (3 specs)
+│   ├── e2e/                      # Playwright (6 specs cobrindo CRUD)
 │   ├── nginx.conf                # reverse-proxy /api e /up
 │   └── Dockerfile                # multi-stage (node → nginx)
 ├── docker-compose.yml            # db + api + web
@@ -207,6 +207,29 @@ Listagem paginada, ordenada por `created_at DESC, id DESC` (mais recentes primei
 
 **Resposta `400 Bad Request`** — JSON malformado ou param `note` ausente.
 
+### `GET /api/v1/notes/:id`
+
+**Resposta `200 OK`** — mesma envelope `{ "data": { ... } }`.
+**Resposta `404 Not Found`** — `{ "error": "Recurso não encontrado." }` (traduzido).
+
+### `PATCH /api/v1/notes/:id`
+
+Update parcial — apenas os campos enviados no body são alterados. Aceita `{ "note": { "content": null } }` para limpar o conteúdo.
+
+**Request**
+```json
+{ "note": { "title": "Novo título" } }
+```
+
+**Resposta `200 OK`** — payload completo da nota atualizada (mesma envelope).
+**Resposta `422 Unprocessable Content`** — mesmo formato de erro do POST.
+**Resposta `404 Not Found`** — quando `:id` não existe.
+
+### `DELETE /api/v1/notes/:id`
+
+**Resposta `204 No Content`** — deleção bem-sucedida (corpo vazio).
+**Resposta `404 Not Found`** — quando `:id` não existe (idempotência HTTP-correta: deletar duas vezes retorna 204 e depois 404, não 204+204).
+
 ### Internacionalização das mensagens
 
 O backend respeita o header `Accept-Language` (apenas a primeira tag é considerada). Mensagens de erro voltam em pt-BR por padrão e em inglês quando `Accept-Language: en`. O frontend mantém o `<html lang>` em sync com vue-i18n e o axios client encaminha automaticamente.
@@ -243,7 +266,7 @@ Veja `.env.example` na raiz e em `api/` e `web/`. As principais:
 
 ## 🧪 Testes
 
-### Backend — RSpec (46 examples)
+### Backend — RSpec (62 examples)
 
 ```bash
 cd api
@@ -252,9 +275,9 @@ bundle exec rspec
 
 Cobre:
 - **Modelo** (23): validações de presença/length nos limites (max e max+1), título com whitespace, normalização (strip), conteúdo opcional, `recent_first` scope, integração com i18n, *defense in depth* (NULL na DB, length na DB) com `save!(validate: false)`.
-- **Controller** (23): paginação default + custom + cap, `page=0/-1/999` (overflow `:empty_page`), `limit="abc"`, headers RFC-8288, ordenação, validação por campo (pt-BR + en), JSON malformado, `note` ausente, atributos desconhecidos descartados pelo strong-params.
+- **Controller** (39): paginação default + custom + cap, `page=0/-1/999` (overflow `:empty_page`), `limit="abc"`, headers RFC-8288, ordenação, validação por campo (pt-BR + en), JSON malformado, `note` ausente, atributos desconhecidos descartados pelo strong-params; **show** (200 + 404 traduzido em ambos locales); **update** (PATCH parcial, content nullable, whitespace stripping, 422 sem mutar estado, 404, 400); **destroy** (204 + idempotência HTTP-correta — 204 na primeira, 404 na segunda).
 
-### Frontend — Vitest (40 examples, ~95% coverage)
+### Frontend — Vitest (73 examples, ~95% coverage)
 
 ```bash
 cd web
@@ -264,12 +287,13 @@ pnpm test:coverage       # com relatório de cobertura
 ```
 
 Cobre:
-- **API layer** (8): wrap de erros 4xx/5xx, preservação de `validationErrors` em 422, fallback de mensagem.
-- **Store Pinia** (9): `fetchPage` populando estado, toggle de loading, captura de erro, reuso de limit; `create` chamando refresh, populando `validationErrors` em 422, `submitError` em network error, limpeza entre tentativas.
-- **NoteForm** (10): placeholders, validação client-side (required + length em tempo real), short-circuit do submit quando inválido, payload com `content: null` quando vazio, reset após sucesso, persistência de inputs em erro server-side, merge de mensagens client + server.
-- **NotesList** (7): fetch on-mount somente quando vazio, empty state, render por nota, placeholder de content nulo, error banner traduzido, conversão de evento de page (0-indexed PrimeVue → 1-indexed API).
+- **API layer** (13): wrap uniforme de erros 4xx/5xx, preservação de `validationErrors` em 422, fallback de mensagem; happy + 404 + 422 para `getNote`/`updateNote`/`deleteNote`.
+- **Store Pinia** (17): `fetchPage` populando estado, toggle de loading, captura de erro, reuso de limit; `create`/`update` chamando refresh, populando `validationErrors` em 422, `submitError` em network error/404, limpeza entre tentativas; `destroy` retornando bool, toggle de `deleting`, **page-back automático quando a página atual fica vazia**.
+- **NoteCard** (9): título/conteúdo/data, fallbacks para título whitespace e conteúdo null, emit de edit/delete, passthrough de data inválida, `data-note-id` para seleção em e2e.
+- **NotesGrid** (12): fetch on-mount condicional, 6 skeleton cards no loading, empty state com CTA, encaminhamento do evento de edit, **fluxo de delete com `useConfirm` mockado** (não chama `destroy` antes de confirmar), Paginator escondido em página única, conversão 0→1 indexed.
+- **NoteFormDialog** (15): create vs edit (header + pré-preenchimento), validação client-side, payload normalizado (`content: null` quando vazio), sucesso fecha + emite `saved`, falha de validação server-side mantém o dialog aberto, cancel não chama nada, reseed dos inputs ao reabrir.
 
-### E2E — Playwright (3 specs)
+### E2E — Playwright (6 specs)
 
 ```bash
 cd web
@@ -277,10 +301,13 @@ pnpm e2e             # headless
 pnpm e2e:ui          # modo UI inspetor
 ```
 
-Spinningup do Rails e Vite via `webServer` config. Locale forçado para `pt-BR`. Cenários:
-- **happy path** — criar, ver toast traduzido, verificar nota no topo da lista, form resetado.
-- **validação** — submit com título vazio mostra mensagem em pt-BR e *não* envia request.
-- **empty state** — `GET /notes` interceptado para garantir o cenário regardless of dev DB.
+Spinning up do Rails e Vite via `webServer` config. Locale forçado para `pt-BR`. Cenários cobertos:
+- **create** — abre dialog, preenche, salva, vê toast + card aparecer + form resetar.
+- **validação** — submit com título vazio mostra erro em pt-BR e *não* envia request; dialog permanece aberto.
+- **cancel** — fecha dialog sem persistir; nada aparece no grid.
+- **edit** — seed via dialog → ícone de pencil → dialog reabre pré-preenchido → muda título → toast "atualizada" + card mostra novo conteúdo.
+- **delete** — seed via dialog → ícone de trash → ConfirmDialog ("Excluir anotação") → aceitar → toast "excluída" + card desaparece.
+- **empty state** — `GET /notes` interceptado pra forçar payload vazio independente da DB de dev.
 
 ### Lint, formatação e tipos
 
@@ -300,9 +327,13 @@ cd web && pnpm lint && pnpm format:check && pnpm type-check
 
 A separação evidencia a fronteira contratual entre back e front, e permite que o avaliador veja o trabalho dos dois lados de forma independente. Para um teste, perde-se a praticidade de um monolito Rails+Hotwire mas ganha-se em clareza arquitetural.
 
-### Por que PrimeVue + DataTable em modo lazy?
+### Por que **cards** ao invés de tabela?
 
-O `DataTable` resolve paginação completa (UI + estado) em poucas linhas, então o foco fica no que de fato é avaliado: contrato, validação, testes. O custo é uma dependência maior (~200KB gzipped). Para um produto real eu reconsideraria — mas o tradeoff é deliberado.
+Notas são objetos visualmente distintos (Trello, Google Keep, Apple Notes, Notion) — não linhas de planilha. Defaultar pra `DataTable` é terceirizar a decisão de UI pra biblioteca, e foi exatamente isso que a primeira iteração fez. A versão atual usa uma grade CSS responsiva (`repeat(auto-fill, minmax(260px, 1fr))`) com cards dedicados — escala de 1 coluna no mobile a 3+ no desktop sem media queries. O Paginator do PrimeVue (não o do DataTable) cuida da navegação.
+
+### Por que **Dialog modal** pra criar e editar?
+
+Considerei manter o form sempre visível no topo da página (estilo Notion). Optei pelo Dialog porque o usuário típico de notas passa a maior parte do tempo *lendo* — manter o form sempre presente compete por espaço visual com o conteúdo. O botão "+ Nova anotação" é a porta de entrada óbvia, e o mesmo Dialog é reusado em modo de edição (com pré-preenchimento) — uma única superfície de form pra manter, validar e testar.
 
 ### Por que **Pagy** ao invés de Kaminari?
 
@@ -341,7 +372,6 @@ Decisões de escopo deliberadas, não esquecimentos:
 | Item                                        | Status        | Justificativa                                                                                              |
 |---------------------------------------------|---------------|------------------------------------------------------------------------------------------------------------|
 | Autenticação / multi-usuário                | **Fora**      | Spec original não pede. Adicionar JWT/cookies complicaria o foco do teste.                                 |
-| Editar/deletar nota                         | **Fora**      | Spec só pede *criar e listar*. Caminhos para `update`/`destroy` ficam óbvios mas não foram implementados.   |
 | Rate limiting                               | **Fora**      | Em produção real eu adicionaria `rack-attack`. Para o teste, fora do escopo.                                |
 | Soft delete / auditoria                     | **Fora**      | Requeriria `paper_trail` ou similar. Fora do escopo.                                                        |
 | Pesquisa / filtros / ordenação por usuário  | **Fora**      | Não pedido. Front simples por design.                                                                       |
@@ -363,17 +393,20 @@ Decisões de escopo deliberadas, não esquecimentos:
 Branches do desenvolvimento:
 
 ```
-main      ←── develop ←── feature/scaffold-rails-api
+main      ←── develop ←── feature/scaffold-rails-api    # v0.1.0
                        ←── feature/note-model
                        ←── feature/notes-controller
                        ←── feature/scaffold-vue
                        ←── feature/notes-ui
                        ←── feature/e2e
                        ←── feature/docker
-                       ←── feature/readme  (← este)
+                       ←── feature/readme
+                       ←── feature/notes-crud           # v0.2.0
+                       ←── feature/notes-card-ui
+                       ←── feature/readme-v2            (← este)
 ```
 
-Todos os merges para `develop` foram feitos com `--no-ff` para preservar a linha do feature branch no histórico. Cada commit é coeso e descreve a motivação no corpo (por que, não só o quê).
+Todos os merges para `develop` foram feitos com `--no-ff` para preservar a linha do feature branch no histórico. Cada commit é coeso e descreve a motivação no corpo (por que, não só o quê). Tags `v0.1.0` (entrega inicial — só create+list em layout tabela) e `v0.2.0` (CRUD completo + redesign em card grid) marcam os cortes de release.
 
 ---
 
