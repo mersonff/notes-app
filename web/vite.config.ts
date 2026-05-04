@@ -38,6 +38,9 @@ export default defineConfig(({ mode }) => {
       globals: true,
       environment: 'happy-dom',
       setupFiles: ['./src/test/setup.ts'],
+      // Playwright owns the e2e/ folder — keep it out of Vitest's glob.
+      include: ['src/**/*.{spec,test}.{ts,tsx}'],
+      exclude: ['node_modules', 'dist', 'e2e/**'],
       coverage: {
         provider: 'v8',
         reporter: ['text', 'html', 'lcov'],
