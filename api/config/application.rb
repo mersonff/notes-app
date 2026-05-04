@@ -44,7 +44,7 @@ module Api
     # I18n: pt-BR is the primary locale, English is the fallback.
     config.i18n.available_locales = %i[pt-BR en]
     config.i18n.default_locale = :"pt-BR"
-    config.i18n.fallbacks = [:en]
+    config.i18n.fallbacks = [ :en ]
 
     # Generators: prefer RSpec + FactoryBot and skip ancillary files
     # we do not use in an API-only app.
