@@ -41,14 +41,23 @@ const i18n = createI18n({
   datetimeFormats
 })
 
-config.global.plugins = [i18n, [PrimeVue, { theme: 'none' }], ToastService, ConfirmationService]
-
-// Reset Pinia (and Pinia Colada's query cache, which lives inside Pinia)
-// between tests so caches don't leak state across cases.
+// Plugin list is rebuilt per-test because Pinia must be installed as a
+// Vue plugin BEFORE PiniaColada (the Colada install hook reaches into the
+// app's pinia to register its hidden cache store) — and we want a fresh
+// Pinia per test so caches don't leak between cases.
 beforeEach(() => {
   const pinia = createPinia()
-  pinia.use(PiniaColada)
   setActivePinia(pinia)
+
+  config.global.plugins = [
+    i18n,
+    [PrimeVue, { theme: 'none' }],
+    ToastService,
+    ConfirmationService,
+    pinia,
+    PiniaColada
+  ]
+
   if (typeof document !== 'undefined') {
     document.documentElement.lang = 'pt-BR'
   }
