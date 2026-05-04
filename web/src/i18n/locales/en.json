@@ -7,6 +7,9 @@
     "title": "Title",
     "content": "Content",
     "createdAt": "Created at",
+    "updatedAt": "Updated at",
+    "untitled": "(untitled)",
+    "noContent": "(no content)",
     "placeholders": {
       "title": "Enter the title",
       "content": "Enter the content..."
@@ -15,10 +18,17 @@
   "actions": {
     "save": "Save",
     "saving": "Saving...",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleting": "Deleting...",
+    "confirm": "Confirm",
+    "newNote": "New note",
     "retry": "Retry"
   },
   "form": {
     "newNote": "New note",
+    "editNote": "Edit note",
     "validation": {
       "titleRequired": "Title is required",
       "titleTooLong": "Title must be at most {max} characters",
@@ -27,15 +37,31 @@
   },
   "list": {
     "heading": "Notes",
-    "empty": "No notes yet. Create the first one above.",
+    "empty": {
+      "title": "No notes yet",
+      "subtitle": "Start by creating your first note.",
+      "cta": "Create first note"
+    },
     "loading": "Loading...",
-    "loadError": "Could not load notes."
+    "loadError": "Could not load notes.",
+    "totalCount": "{count} note | {count} notes"
+  },
+  "confirm": {
+    "delete": {
+      "header": "Delete note",
+      "message": "Are you sure you want to delete \"{title}\"? This action cannot be undone."
+    }
   },
   "toast": {
     "createdTitle": "Note created",
     "createdDetail": "Your note was saved successfully.",
+    "updatedTitle": "Note updated",
+    "updatedDetail": "Your changes were saved.",
+    "deletedTitle": "Note deleted",
+    "deletedDetail": "The note has been removed.",
     "errorTitle": "Error",
     "validationErrorDetail": "Please fix the highlighted fields.",
-    "networkErrorDetail": "Could not reach the server."
+    "networkErrorDetail": "Could not reach the server.",
+    "deleteErrorDetail": "Could not delete the note."
   }
 }

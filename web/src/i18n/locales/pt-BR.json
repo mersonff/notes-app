@@ -7,6 +7,9 @@
     "title": "Título",
     "content": "Conteúdo",
     "createdAt": "Criada em",
+    "updatedAt": "Atualizada em",
+    "untitled": "(sem título)",
+    "noContent": "(sem conteúdo)",
     "placeholders": {
       "title": "Digite o título",
       "content": "Digite o conteúdo..."
@@ -15,10 +18,17 @@
   "actions": {
     "save": "Salvar",
     "saving": "Salvando...",
+    "cancel": "Cancelar",
+    "edit": "Editar",
+    "delete": "Excluir",
+    "deleting": "Excluindo...",
+    "confirm": "Confirmar",
+    "newNote": "Nova anotação",
     "retry": "Tentar novamente"
   },
   "form": {
     "newNote": "Nova anotação",
+    "editNote": "Editar anotação",
     "validation": {
       "titleRequired": "Título é obrigatório",
       "titleTooLong": "Título deve ter no máximo {max} caracteres",
@@ -27,15 +37,31 @@
   },
   "list": {
     "heading": "Anotações",
-    "empty": "Nenhuma anotação ainda. Crie a primeira acima.",
+    "empty": {
+      "title": "Nenhuma anotação ainda",
+      "subtitle": "Comece criando sua primeira anotação.",
+      "cta": "Criar primeira anotação"
+    },
     "loading": "Carregando...",
-    "loadError": "Não foi possível carregar as anotações."
+    "loadError": "Não foi possível carregar as anotações.",
+    "totalCount": "{count} anotação | {count} anotações"
+  },
+  "confirm": {
+    "delete": {
+      "header": "Excluir anotação",
+      "message": "Tem certeza que deseja excluir \"{title}\"? Esta ação não pode ser desfeita."
+    }
   },
   "toast": {
     "createdTitle": "Anotação criada",
     "createdDetail": "Sua anotação foi salva com sucesso.",
+    "updatedTitle": "Anotação atualizada",
+    "updatedDetail": "Suas alterações foram salvas.",
+    "deletedTitle": "Anotação excluída",
+    "deletedDetail": "A anotação foi removida.",
     "errorTitle": "Erro",
     "validationErrorDetail": "Por favor corrija os campos destacados.",
-    "networkErrorDetail": "Não foi possível conectar ao servidor."
+    "networkErrorDetail": "Não foi possível conectar ao servidor.",
+    "deleteErrorDetail": "Não foi possível excluir a anotação."
   }
 }

@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AxiosError, AxiosHeaders } from 'axios'
-import { ApiError, createNote, listNotes } from './notes'
+import { ApiError, createNote, deleteNote, getNote, listNotes, updateNote } from './notes'
 import { apiClient } from './client'
 
 describe('api/notes', () => {
   beforeEach(() => {
     vi.spyOn(apiClient, 'get').mockReset()
     vi.spyOn(apiClient, 'post').mockReset()
+    vi.spyOn(apiClient, 'patch').mockReset()
+    vi.spyOn(apiClient, 'delete').mockReset()
   })
 
   afterEach(() => {
@@ -102,6 +104,96 @@ describe('api/notes', () => {
       vi.spyOn(apiClient, 'post').mockRejectedValueOnce(buildAxiosError(500, undefined))
 
       await expect(createNote({ title: 'x' })).rejects.toBeInstanceOf(ApiError)
+    })
+  })
+
+  describe('getNote', () => {
+    it('returns the note unwrapped from the data envelope', async () => {
+      vi.spyOn(apiClient, 'get').mockResolvedValueOnce({
+        data: {
+          data: {
+            id: 5,
+            title: 'X',
+            content: null,
+            created_at: '',
+            updated_at: ''
+          }
+        }
+      })
+
+      const note = await getNote(5)
+      expect(note.id).toBe(5)
+    })
+
+    it('throws ApiError with status 404 when the note is missing', async () => {
+      vi.spyOn(apiClient, 'get').mockRejectedValueOnce(
+        buildAxiosError(404, { error: 'Recurso não encontrado.' })
+      )
+
+      await expect(getNote(999)).rejects.toMatchObject({
+        name: 'ApiError',
+        status: 404,
+        message: 'Recurso não encontrado.'
+      })
+    })
+  })
+
+  describe('updateNote', () => {
+    it('returns the updated note', async () => {
+      vi.spyOn(apiClient, 'patch').mockResolvedValueOnce({
+        data: {
+          data: {
+            id: 5,
+            title: 'Updated',
+            content: 'New',
+            created_at: '',
+            updated_at: ''
+          }
+        }
+      })
+
+      const note = await updateNote(5, { title: 'Updated', content: 'New' })
+      expect(note.title).toBe('Updated')
+    })
+
+    it('preserves validationErrors on a 422', async () => {
+      vi.spyOn(apiClient, 'patch').mockRejectedValueOnce(
+        buildAxiosError(422, { errors: { title: ['too long'] } })
+      )
+
+      await expect(updateNote(5, { title: '' })).rejects.toMatchObject({
+        status: 422,
+        validationErrors: { title: ['too long'] }
+      })
+    })
+
+    it('throws 404 when the resource is missing', async () => {
+      vi.spyOn(apiClient, 'patch').mockRejectedValueOnce(
+        buildAxiosError(404, { error: 'Recurso não encontrado.' })
+      )
+
+      await expect(updateNote(999, { title: 'x' })).rejects.toMatchObject({
+        status: 404
+      })
+    })
+  })
+
+  describe('deleteNote', () => {
+    it('resolves to void on success (204 No Content)', async () => {
+      vi.spyOn(apiClient, 'delete').mockResolvedValueOnce({ status: 204, data: '' })
+
+      await expect(deleteNote(5)).resolves.toBeUndefined()
+    })
+
+    it('throws 404 when the note does not exist', async () => {
+      vi.spyOn(apiClient, 'delete').mockRejectedValueOnce(
+        buildAxiosError(404, { error: 'Recurso não encontrado.' })
+      )
+
+      await expect(deleteNote(999)).rejects.toMatchObject({
+        name: 'ApiError',
+        status: 404
+      })
     })
   })
 })
