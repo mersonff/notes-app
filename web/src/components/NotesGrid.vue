@@ -125,8 +125,13 @@ function confirmDelete(note: Note) {
       />
     </div>
 
-    <!-- Cards grid -->
-    <div v-else class="notes-grid" data-testid="notes-grid">
+    <!--
+      Cards grid: TransitionGroup gives us FLIP-style animation —
+      cards fade+rise into the grid, fade+shrink out, and survivors
+      slide to their new positions when others leave (e.g. after a
+      delete or a search filter narrows the result set).
+    -->
+    <TransitionGroup v-else name="card" tag="div" class="notes-grid" data-testid="notes-grid">
       <NoteCard
         v-for="note in notes"
         :key="note.id"
@@ -134,7 +139,7 @@ function confirmDelete(note: Note) {
         @edit="emit('edit', note)"
         @delete="confirmDelete"
       />
-    </div>
+    </TransitionGroup>
 
     <Paginator
       v-if="showPaginator"
@@ -161,6 +166,54 @@ function confirmDelete(note: Note) {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 16px;
+}
+
+/*
+ * TransitionGroup classes (name="card").
+ *   - card-enter-active / card-leave-active: the timing curve.
+ *   - card-enter-from / card-leave-to: the start / end visual states.
+ *   - card-move: applied to surviving siblings during a layout reflow.
+ *   - card-leave-active position:absolute removes the leaving element
+ *     from the grid layout so the others can animate to their new
+ *     spots (the FLIP technique).
+ */
+.card-enter-active,
+.card-leave-active,
+.card-move {
+  transition:
+    opacity 220ms ease,
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.card-enter-from {
+  opacity: 0;
+  transform: translateY(8px) scale(0.97);
+}
+
+.card-leave-to {
+  opacity: 0;
+  transform: scale(0.94);
+}
+
+.card-leave-active {
+  position: absolute;
+  /* Constrain the absolutely-positioned leaving card to the grid track
+   * width so it doesn't snap to its parent's full width during fade-out. */
+  width: calc((100% - 32px) / 3);
+  max-width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-enter-active,
+  .card-leave-active,
+  .card-move {
+    transition: none;
+  }
+  .card-enter-from,
+  .card-leave-to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .note-skeleton {

@@ -107,22 +107,30 @@ function clearSearch() {
           aria-label="Buscar"
           data-testid="notes-search"
         />
-        <i
+        <!--
+          Right-side trailing icon: spinner while a search is in flight,
+          clickable X otherwise. Both use <InputIcon> so PrimeVue's
+          IconField positions them consistently (no custom absolute
+          positioning needed; that's what made the previous spinner look
+          off-axis).
+        -->
+        <InputIcon
           v-if="isSearching"
-          class="pi pi-spin pi-spinner notes-view__search-spinner"
+          class="pi pi-spin pi-spinner notes-view__search-trailing"
           aria-hidden="true"
           data-testid="notes-search-spinner"
         />
-        <button
+        <InputIcon
           v-else-if="searchInput.length > 0"
-          type="button"
-          class="notes-view__search-clear"
+          class="pi pi-times notes-view__search-trailing notes-view__search-trailing--clickable"
+          role="button"
+          tabindex="0"
           :aria-label="t('actions.clearSearch')"
           data-testid="notes-search-clear"
           @click="clearSearch"
-        >
-          <i class="pi pi-times" />
-        </button>
+          @keydown.enter.prevent="clearSearch"
+          @keydown.space.prevent="clearSearch"
+        />
       </IconField>
 
       <span v-if="showCount" class="notes-view__count" data-testid="notes-count">
@@ -175,39 +183,33 @@ function clearSearch() {
 
 .notes-view__search :deep(.p-inputtext) {
   width: 100%;
+  /* Reserve space on the right for the trailing icon (PrimeVue places it
+   * 0.75rem from the edge by default). Without this padding long values
+   * scroll under the spinner/X. */
+  padding-right: 2.25rem;
 }
 
-.notes-view__search-clear {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: transparent;
-  border: 0;
+/* Move PrimeVue's left-positioned InputIcon to the right when our class
+ * is applied (IconField defaults all InputIcons to left). */
+.notes-view__search :deep(.notes-view__search-trailing) {
+  left: auto;
+  right: 0.75rem;
+}
+
+.notes-view__search :deep(.notes-view__search-trailing--clickable) {
   cursor: pointer;
-  color: var(--p-text-muted-color, #888);
-  padding: 4px;
   border-radius: 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  padding: 2px;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
 }
 
-.notes-view__search-clear:hover,
-.notes-view__search-clear:focus-visible {
-  color: var(--p-text-color, #111);
-  background: var(--p-surface-100, rgba(0, 0, 0, 0.05));
+.notes-view__search :deep(.notes-view__search-trailing--clickable:hover),
+.notes-view__search :deep(.notes-view__search-trailing--clickable:focus-visible) {
+  color: var(--p-text-color);
+  background: var(--p-surface-200, rgba(0, 0, 0, 0.06));
   outline: none;
-}
-
-.notes-view__search-spinner {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--p-primary-color, #6366f1);
-  font-size: 0.95rem;
-  pointer-events: none;
 }
 
 .notes-view__count {
