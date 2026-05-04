@@ -29,20 +29,23 @@ function openEdit(note: Note) {
 
 <template>
   <div class="notes-view">
-    <header class="notes-view__header">
-      <div class="notes-view__heading">
-        <h2>{{ t('list.heading') }}</h2>
-        <span v-if="showCount" class="notes-view__count" data-testid="notes-count">
-          {{ t('list.totalCount', totalCount) }}
-        </span>
-      </div>
+    <!--
+      No section heading here — the page-level <h1> in App.vue already
+      identifies the screen. This bar is purely a toolbar (count + the
+      primary action).
+    -->
+    <div class="notes-view__toolbar">
+      <span v-if="showCount" class="notes-view__count" data-testid="notes-count">
+        {{ t('list.totalCount', totalCount) }}
+      </span>
+      <span v-else aria-hidden="true" />
       <Button
         :label="t('actions.newNote')"
         icon="pi pi-plus"
         data-testid="open-new-note"
         @click="openCreate"
       />
-    </header>
+    </div>
 
     <NotesGrid @create="openCreate" @edit="openEdit" />
 
@@ -54,10 +57,10 @@ function openEdit(note: Note) {
 .notes-view {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
 }
 
-.notes-view__header {
+.notes-view__toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -65,20 +68,8 @@ function openEdit(note: Note) {
   flex-wrap: wrap;
 }
 
-.notes-view__heading {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-}
-
-.notes-view__heading h2 {
-  margin: 0;
-  font-size: 1.4rem;
-  font-weight: 600;
-}
-
 .notes-view__count {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   color: var(--p-text-muted-color, #888);
 }
 </style>
