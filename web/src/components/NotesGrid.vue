@@ -16,12 +16,15 @@ const props = defineProps<{
   pagination: PaginationMeta | null
   loading: boolean
   loadError: string | null
+  /** When non-empty, the empty state switches from "no notes ever" to "no results". */
+  searchQuery?: string
 }>()
 
 const emit = defineEmits<{
   create: []
   edit: [note: Note]
   page: [{ page: number; rows: number }]
+  clearSearch: []
 }>()
 
 const { t } = useI18n()
@@ -35,7 +38,10 @@ const rows = computed(() => props.pagination?.limit ?? 20)
 const first = computed(() => ((props.pagination?.page ?? 1) - 1) * rows.value)
 const showPaginator = computed(() => totalRecords.value > rows.value)
 const showSkeletons = computed(() => props.loading && props.notes.length === 0)
-const showEmpty = computed(() => !props.loading && !props.loadError && props.notes.length === 0)
+const isEmpty = computed(() => !props.loading && !props.loadError && props.notes.length === 0)
+const hasActiveSearch = computed(() => (props.searchQuery ?? '').trim().length > 0)
+const showNoResults = computed(() => isEmpty.value && hasActiveSearch.value)
+const showEmpty = computed(() => isEmpty.value && !hasActiveSearch.value)
 
 function onPage(event: PageState) {
   emit('page', { page: event.page + 1, rows: event.rows })
@@ -89,7 +95,24 @@ function confirmDelete(note: Note) {
       </div>
     </div>
 
-    <!-- Empty state -->
+    <!-- No-results state (search returned nothing) -->
+    <div v-else-if="showNoResults" class="notes-empty" data-testid="notes-no-results">
+      <i class="pi pi-search notes-empty__icon" aria-hidden="true" />
+      <h2 class="notes-empty__title">
+        {{ t('list.noResults.title', { query: searchQuery }) }}
+      </h2>
+      <p class="notes-empty__subtitle">{{ t('list.noResults.subtitle') }}</p>
+      <Button
+        :label="t('actions.clearSearch')"
+        icon="pi pi-times"
+        severity="secondary"
+        variant="text"
+        data-testid="notes-clear-search"
+        @click="emit('clearSearch')"
+      />
+    </div>
+
+    <!-- Empty-list state (no notes ever) -->
     <div v-else-if="showEmpty" class="notes-empty" data-testid="notes-empty">
       <i class="pi pi-inbox notes-empty__icon" aria-hidden="true" />
       <h2 class="notes-empty__title">{{ t('list.empty.title') }}</h2>

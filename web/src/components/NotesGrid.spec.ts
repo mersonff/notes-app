@@ -194,4 +194,65 @@ describe('NotesGrid.vue', () => {
 
     expect(wrapper.find('[data-testid="notes-load-error"]').exists()).toBe(true)
   })
+
+  describe('search states', () => {
+    it('shows the no-results state (with the query) when search is active and notes are empty', () => {
+      const wrapper = mount(NotesGrid, {
+        props: defaultProps({
+          pagination: meta({ count: 0 }),
+          searchQuery: 'reunião'
+        })
+      })
+
+      expect(wrapper.find('[data-testid="notes-no-results"]').exists()).toBe(true)
+      expect(wrapper.text()).toContain('Nenhum resultado para "reunião"')
+      // The "no notes ever" empty state must NOT show when there's an active search
+      expect(wrapper.find('[data-testid="notes-empty"]').exists()).toBe(false)
+    })
+
+    it('emits "clearSearch" when the clear button in the no-results state is clicked', async () => {
+      const wrapper = mount(NotesGrid, {
+        props: defaultProps({
+          pagination: meta({ count: 0 }),
+          searchQuery: 'foo'
+        })
+      })
+
+      await wrapper.find('[data-testid="notes-clear-search"]').trigger('click')
+
+      expect(wrapper.emitted('clearSearch')).toBeTruthy()
+    })
+
+    it('shows the regular empty state when search is empty (no query passed)', () => {
+      const wrapper = mount(NotesGrid, {
+        props: defaultProps({ pagination: meta({ count: 0 }), searchQuery: '' })
+      })
+
+      expect(wrapper.find('[data-testid="notes-empty"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="notes-no-results"]').exists()).toBe(false)
+    })
+
+    it('treats whitespace-only search as no active search (shows empty, not no-results)', () => {
+      const wrapper = mount(NotesGrid, {
+        props: defaultProps({ pagination: meta({ count: 0 }), searchQuery: '   ' })
+      })
+
+      expect(wrapper.find('[data-testid="notes-empty"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="notes-no-results"]').exists()).toBe(false)
+    })
+
+    it('does not show either empty state when search is active but notes match', () => {
+      const wrapper = mount(NotesGrid, {
+        props: defaultProps({
+          notes: [note({ id: 1, title: 'Match' })],
+          pagination: meta({ count: 1 }),
+          searchQuery: 'mat'
+        })
+      })
+
+      expect(wrapper.find('[data-testid="notes-empty"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="notes-no-results"]').exists()).toBe(false)
+      expect(wrapper.findAll('[data-testid="note-card"]')).toHaveLength(1)
+    })
+  })
 })

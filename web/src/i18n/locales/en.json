@@ -12,7 +12,8 @@
     "noContent": "(no content)",
     "placeholders": {
       "title": "Enter the title",
-      "content": "Enter the content..."
+      "content": "Enter the content...",
+      "search": "Search title or content..."
     }
   },
   "actions": {
@@ -24,7 +25,8 @@
     "deleting": "Deleting...",
     "confirm": "Confirm",
     "newNote": "New note",
-    "retry": "Retry"
+    "retry": "Retry",
+    "clearSearch": "Clear search"
   },
   "form": {
     "newNote": "New note",
@@ -42,9 +44,14 @@
       "subtitle": "Start by creating your first note.",
       "cta": "Create first note"
     },
+    "noResults": {
+      "title": "No results for \"{query}\"",
+      "subtitle": "Try other terms or clear the search."
+    },
     "loading": "Loading...",
     "loadError": "Could not load notes.",
-    "totalCount": "{count} note | {count} notes"
+    "totalCount": "{count} note | {count} notes",
+    "totalCountFiltered": "{count} result for \"{query}\" | {count} results for \"{query}\""
   },
   "confirm": {
     "delete": {
