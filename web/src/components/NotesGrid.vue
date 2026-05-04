@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
@@ -8,34 +8,37 @@ import Message from 'primevue/message'
 import Skeleton from 'primevue/skeleton'
 import Paginator, { type PageState } from 'primevue/paginator'
 import NoteCard from './NoteCard.vue'
-import { useNotesStore } from '@/stores/notes'
-import type { Note } from '@/types/note'
+import { useDeleteNoteMutation } from '@/composables/useNotesMutations'
+import type { Note, PaginationMeta } from '@/types/note'
+
+const props = defineProps<{
+  notes: readonly Note[]
+  pagination: PaginationMeta | null
+  loading: boolean
+  loadError: string | null
+}>()
 
 const emit = defineEmits<{
   create: []
   edit: [note: Note]
+  page: [{ page: number; rows: number }]
 }>()
 
 const { t } = useI18n()
-const store = useNotesStore()
 const confirm = useConfirm()
 const toast = useToast()
 
-onMounted(() => {
-  if (store.notes.length === 0 && !store.loading) {
-    store.fetchPage(1)
-  }
-})
+const deleteMutation = useDeleteNoteMutation()
 
-const totalRecords = computed(() => store.pagination?.count ?? 0)
-const rows = computed(() => store.pagination?.limit ?? 20)
-const first = computed(() => ((store.pagination?.page ?? 1) - 1) * rows.value)
+const totalRecords = computed(() => props.pagination?.count ?? 0)
+const rows = computed(() => props.pagination?.limit ?? 20)
+const first = computed(() => ((props.pagination?.page ?? 1) - 1) * rows.value)
 const showPaginator = computed(() => totalRecords.value > rows.value)
-const showSkeletons = computed(() => store.loading && store.notes.length === 0)
-const showEmpty = computed(() => !store.loading && !store.loadError && store.notes.length === 0)
+const showSkeletons = computed(() => props.loading && props.notes.length === 0)
+const showEmpty = computed(() => !props.loading && !props.loadError && props.notes.length === 0)
 
 function onPage(event: PageState) {
-  store.fetchPage(event.page + 1, event.rows)
+  emit('page', { page: event.page + 1, rows: event.rows })
 }
 
 function confirmDelete(note: Note) {
@@ -48,19 +51,19 @@ function confirmDelete(note: Note) {
     acceptProps: { severity: 'danger' },
     rejectProps: { severity: 'secondary', variant: 'text' },
     accept: async () => {
-      const ok = await store.destroy(note.id)
-      if (ok) {
+      try {
+        await deleteMutation.mutateAsync(note.id)
         toast.add({
           severity: 'success',
           summary: t('toast.deletedTitle'),
           detail: t('toast.deletedDetail'),
           life: 3000
         })
-      } else {
+      } catch (err) {
         toast.add({
           severity: 'error',
           summary: t('toast.errorTitle'),
-          detail: store.submitError ?? t('toast.deleteErrorDetail'),
+          detail: err instanceof Error && err.message ? err.message : t('toast.deleteErrorDetail'),
           life: 4000
         })
       }
@@ -71,12 +74,7 @@ function confirmDelete(note: Note) {
 
 <template>
   <section class="notes-grid-wrapper">
-    <Message
-      v-if="store.loadError"
-      severity="error"
-      :closable="false"
-      data-testid="notes-load-error"
-    >
+    <Message v-if="loadError" severity="error" :closable="false" data-testid="notes-load-error">
       {{ t('list.loadError') }}
     </Message>
 
@@ -107,7 +105,7 @@ function confirmDelete(note: Note) {
     <!-- Cards grid -->
     <div v-else class="notes-grid" data-testid="notes-grid">
       <NoteCard
-        v-for="note in store.notes"
+        v-for="note in notes"
         :key="note.id"
         :note="note"
         @edit="emit('edit', note)"

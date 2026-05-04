@@ -1,6 +1,7 @@
 import { config } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
 import { createPinia, setActivePinia } from 'pinia'
+import { PiniaColada } from '@pinia/colada'
 import PrimeVue from 'primevue/config'
 import ToastService from 'primevue/toastservice'
 import ConfirmationService from 'primevue/confirmationservice'
@@ -42,9 +43,12 @@ const i18n = createI18n({
 
 config.global.plugins = [i18n, [PrimeVue, { theme: 'none' }], ToastService, ConfirmationService]
 
-// Reset Pinia between tests so stores don't leak state across cases.
+// Reset Pinia (and Pinia Colada's query cache, which lives inside Pinia)
+// between tests so caches don't leak state across cases.
 beforeEach(() => {
-  setActivePinia(createPinia())
+  const pinia = createPinia()
+  pinia.use(PiniaColada)
+  setActivePinia(pinia)
   if (typeof document !== 'undefined') {
     document.documentElement.lang = 'pt-BR'
   }
