@@ -17,7 +17,13 @@ gem "tzinfo-data", platforms: %i[ windows jruby ]
 gem "thruster", require: false
 
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin Ajax possible
-# gem "rack-cors"
+gem "rack-cors", "~> 3.0"
+
+# Pagination
+gem "pagy", "~> 9.3"
+
+# Translations for the Rails baseline (dates, validation messages, etc.)
+gem "rails-i18n", "~> 8.0"
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
@@ -37,6 +43,9 @@ group :development, :test do
 
   # Replaces fixtures with factories
   gem "factory_bot_rails", "~> 6.4"
+
+  # Loads .env files in development/test (12-factor config)
+  gem "dotenv-rails", "~> 3.1"
 end
 
 group :test do
