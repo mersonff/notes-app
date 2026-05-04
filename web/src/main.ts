@@ -10,6 +10,11 @@ import './style.css'
 import App from './App.vue'
 import { i18n } from '@/i18n'
 
+// Mirror the active locale onto <html lang>. The api client reads this
+// to set Accept-Language without having to import the i18n instance
+// (avoids circular dependencies and keeps tests easy).
+document.documentElement.lang = i18n.global.locale.value
+
 const app = createApp(App)
 
 app.use(createPinia())

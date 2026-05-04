@@ -1,10 +1,33 @@
 import { config } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
 import { createPinia, setActivePinia } from 'pinia'
+import PrimeVue from 'primevue/config'
+import ToastService from 'primevue/toastservice'
 import { beforeEach, vi } from 'vitest'
 
 import ptBR from '@/i18n/locales/pt-BR.json'
 import en from '@/i18n/locales/en.json'
+
+const datetimeFormats = {
+  'pt-BR': {
+    short: {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    } as Intl.DateTimeFormatOptions
+  },
+  en: {
+    short: {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    } as Intl.DateTimeFormatOptions
+  }
+}
 
 // A test-scoped i18n instance using the same messages as production.
 // Defaulting to pt-BR mirrors the app's primary locale.
@@ -12,14 +35,18 @@ const i18n = createI18n({
   legacy: false,
   locale: 'pt-BR',
   fallbackLocale: 'en',
-  messages: { 'pt-BR': ptBR, en }
+  messages: { 'pt-BR': ptBR, en },
+  datetimeFormats
 })
 
-config.global.plugins = [i18n]
+config.global.plugins = [i18n, [PrimeVue, { theme: 'none' }], ToastService]
 
 // Reset Pinia between tests so stores don't leak state across cases.
 beforeEach(() => {
   setActivePinia(createPinia())
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = 'pt-BR'
+  }
 })
 
 // Stub matchMedia (PrimeVue's theme handling reads it for prefers-color-scheme).
