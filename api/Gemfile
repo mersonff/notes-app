@@ -25,6 +25,9 @@ gem "pagy", "~> 9.3"
 # Translations for the Rails baseline (dates, validation messages, etc.)
 gem "rails-i18n", "~> 8.0"
 
+gem "rswag-api", "~> 2.16"
+gem "rswag-ui", "~> 2.16"
+
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
@@ -46,6 +49,8 @@ group :development, :test do
 
   # Loads .env files in development/test (12-factor config)
   gem "dotenv-rails", "~> 3.1"
+
+  gem "rswag-specs", "~> 2.16"
 end
 
 group :test do

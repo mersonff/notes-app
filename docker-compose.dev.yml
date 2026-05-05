@@ -22,6 +22,7 @@ services:
     environment:
       RAILS_ENV: development
       DATABASE_URL: postgres://postgres:postgres@db:5432/notes_app_development
+      TEST_DATABASE_URL: postgres://postgres:postgres@db:5432/notes_app_test
       RAILS_LOG_TO_STDOUT: "true"
       CORS_ORIGINS: http://localhost:5173
     ports:
