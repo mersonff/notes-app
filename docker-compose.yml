@@ -1,11 +1,12 @@
+name: notes-app
+
 services:
   db:
     image: postgres:16-alpine
-    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-notes_app}
+      POSTGRES_DB: ${POSTGRES_DB:-notes_app}_development
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
@@ -17,41 +18,36 @@ services:
   api:
     build:
       context: ./api
-      dockerfile: Dockerfile
-    restart: unless-stopped
     environment:
-      RAILS_ENV: production
-      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-notes_app}
-      SECRET_KEY_BASE: ${SECRET_KEY_BASE:?SECRET_KEY_BASE is required — generate with bin/rails secret}
+      RAILS_ENV: development
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-notes_app}_development
+      TEST_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-notes_app}_test
       RAILS_LOG_TO_STDOUT: "true"
-      RAILS_LOG_LEVEL: ${RAILS_LOG_LEVEL:-info}
-      RAILS_ASSUME_SSL: "false"
-      RAILS_FORCE_SSL: "false"
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
-      PAGY_DEFAULT_ITEMS: ${PAGY_DEFAULT_ITEMS:-20}
-      PAGY_MAX_ITEMS: ${PAGY_MAX_ITEMS:-100}
+      CORS_ORIGINS: http://localhost:${WEB_PORT:-5173}
+    ports:
+      - "${API_PORT:-3000}:3000"
+    volumes:
+      - ./api:/rails
+      - bundle-cache:/usr/local/bundle
     depends_on:
       db:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:80/up || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 10
-      start_period: 30s
 
   web:
-    build:
-      context: ./web
-      dockerfile: Dockerfile
-      args:
-        VITE_API_URL: ""
-    restart: unless-stopped
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "corepack enable && corepack prepare pnpm@10.12.3 --activate && pnpm install && pnpm dev --host 0.0.0.0"
+    environment:
+      PROXY_TARGET: http://api:3000
     ports:
-      - "${WEB_PORT:-8080}:8080"
+      - "${WEB_PORT:-5173}:5173"
+    volumes:
+      - ./web:/app
+      - web-node-modules:/app/node_modules
     depends_on:
-      api:
-        condition: service_healthy
+      - api
 
 volumes:
   db-data:
+  bundle-cache:
+  web-node-modules:
