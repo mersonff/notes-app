@@ -1,0 +1,7 @@
+version: 2
+secret:
+  ignored-paths:
+    - 'docker-compose.yml'
+    - '.github/workflows/ci.yml'
+    - 'api/.env.example'
+    - 'api/config/database.yml'

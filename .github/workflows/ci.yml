@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  api:
+    name: api — rspec + rubocop + brakeman + bundler-audit
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ${{ secrets.CI_PG_PASSWORD || 'postgres' }}
+          POSTGRES_DB: notes_app_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: api
+    env:
+      RAILS_ENV: test
+      DATABASE_URL: ${{ format('postgres://postgres:{0}@localhost:5432/notes_app_test', secrets.CI_PG_PASSWORD || 'postgres') }}
+      TEST_DATABASE_URL: ${{ format('postgres://postgres:{0}@localhost:5432/notes_app_test', secrets.CI_PG_PASSWORD || 'postgres') }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version-file: api/.ruby-version
+          bundler-cache: true
+          working-directory: api
+      - run: bin/rails db:test:prepare
+      - run: bundle exec rspec
+      - run: bundle exec rubocop
+      - run: bundle exec brakeman --quiet --no-pager
+      - run: bundle exec bundler-audit check --update
+
+  web:
+    name: web — vitest + lint + type-check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm type-check

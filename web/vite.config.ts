@@ -6,7 +6,10 @@ import { fileURLToPath, URL } from 'node:url'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const apiTarget = env.VITE_API_URL ?? 'http://localhost:3000'
+  // PROXY_TARGET is server-side only (used here by the Vite dev proxy).
+  // VITE_API_URL leaks into the browser bundle as axios baseURL — keep it
+  // unset so the SPA hits relative paths and the proxy resolves them.
+  const apiTarget = env.PROXY_TARGET || env.VITE_API_URL || 'http://localhost:3000'
 
   return {
     plugins: [vue()],

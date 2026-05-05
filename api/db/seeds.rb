@@ -11,6 +11,10 @@
 #     and the card's line-clamp both get exercised)
 #   - 30+ records (enough to span 2 pages at the default page size of 20)
 
+# Test env runs in transactional fixtures — seeds would corrupt the empty
+# baseline that specs expect.
+return if Rails.env.test?
+
 NOTES_FIXTURES = [
   {
     title: "Reunião semanal com o time de produto",
