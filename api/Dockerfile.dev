@@ -1,6 +1,4 @@
 # syntax=docker/dockerfile:1
-# Development image: gems install at first `up` into a named volume, so
-# subsequent boots are fast and Gemfile changes don't force an image rebuild.
 FROM docker.io/library/ruby:3.4.9-slim
 
 WORKDIR /rails
