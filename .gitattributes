@@ -1,0 +1,16 @@
+# Normalize all text files to LF on commit and on checkout.
+# Avoids "bash: : invalid option" failures when bin/ scripts are checked
+# out on Windows / WSL with autocrlf=true.
+* text=auto eol=lf
+
+# Shell and Ruby executables shipped under api/bin must be LF — they run
+# inside a Linux container and bash refuses CR in the shebang line.
+api/bin/* text eol=lf
+*.sh      text eol=lf
+
+# Binary assets — never touch.
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.ico     binary

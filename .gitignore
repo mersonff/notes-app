@@ -33,3 +33,8 @@ node_modules/
 vendor/bundle/
 log/*.log
 tmp/
+
+
+.github/instructions/codacy.instructions.md
+.claude/
+.playwright-mcp/

@@ -239,13 +239,9 @@ function confirmDelete(note: Note) {
   gap: 12px;
   padding: 64px 24px;
   text-align: center;
-  /* Use tokens that flip with the theme. --p-content-background follows
-   * the active surface (white in light mode, dark in dark mode). The
-   * dashed border + transparent overlay give the "empty container" feel
-   * without locking us to a single brightness. */
   border: 2px dashed var(--p-content-border-color, currentColor);
   border-radius: 12px;
-  background: color-mix(in srgb, var(--p-content-background, transparent) 60%, transparent);
+  background: transparent;
 }
 
 .notes-empty__icon {

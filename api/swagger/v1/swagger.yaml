@@ -1,0 +1,228 @@
+---
+openapi: 3.0.1
+info:
+  title: Notes API
+  description: CRUD para anotações. Errors traduzidas via header `Accept-Language`
+    (pt-BR padrão, en suportado).
+  version: v1
+servers:
+- url: "/"
+  description: Same-origin (recommended — works behind nginx in compose)
+components:
+  schemas:
+    Note:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: Reunião
+        content:
+          type: string
+          nullable: true
+          example: Pauta...
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - title
+      - created_at
+      - updated_at
+    NoteInput:
+      type: object
+      properties:
+        note:
+          type: object
+          properties:
+            title:
+              type: string
+              example: Reunião
+            content:
+              type: string
+              nullable: true
+              example: Pauta opcional
+          required:
+          - title
+      required:
+      - note
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        pages:
+          type: integer
+          example: 1
+        count:
+          type: integer
+          example: 3
+        prev:
+          type: integer
+          nullable: true
+          example:
+        next:
+          type: integer
+          nullable: true
+          example:
+    Errors:
+      type: object
+      description: Validation failures keyed by attribute name. Each value is a list
+        of messages (localized via Accept-Language).
+      properties:
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+    NotFound:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Recurso não encontrado.
+paths:
+  "/api/v1/notes":
+    get:
+      summary: List notes (paginated)
+      tags:
+      - Notes
+      parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+        required: false
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+        required: false
+      - name: search
+        in: query
+        schema:
+          type: string
+        required: false
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/Note"
+                  pagination:
+                    "$ref": "#/components/schemas/Pagination"
+                required:
+                - data
+                - pagination
+    post:
+      summary: Create a note
+      tags:
+      - Notes
+      parameters: []
+      responses:
+        '201':
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Note"
+        '422':
+          description: validation failed
+          content:
+            application/json:
+              examples:
+                example_0:
+                  value:
+                    errors:
+                      title:
+                      - não pode ficar em branco
+              schema:
+                "$ref": "#/components/schemas/Errors"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/NoteInput"
+  "/api/v1/notes/{id}":
+    parameters:
+    - name: id
+      in: path
+      schema:
+        type: integer
+      required: true
+    get:
+      summary: Show a note
+      tags:
+      - Notes
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Note"
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/NotFound"
+    patch:
+      summary: Update a note
+      tags:
+      - Notes
+      parameters: []
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Note"
+        '422':
+          description: validation failed
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Errors"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/NoteInput"
+    delete:
+      summary: Destroy a note
+      tags:
+      - Notes
+      responses:
+        '204':
+          description: deleted
+        '404':
+          description: not found
