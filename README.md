@@ -9,29 +9,16 @@ Requisitos: Docker 24+ e Docker Compose v2.
 ```bash
 git clone https://github.com/mersonff/notes-app.git
 cd notes-app
-cp .env.example .env
-
-docker run --rm ruby:3.4-slim bash -c 'gem install rails -v "~> 8.1" --no-document --silent && rails secret' \
-  | xargs -I {} sed -i "s|^SECRET_KEY_BASE=.*|SECRET_KEY_BASE={}|" .env
-
 docker compose up --build
 ```
 
-Aguarde os healthchecks ficarem verdes e abra **http://localhost:8080**.
-
-A documentação interativa da API está em **http://localhost:8080/api-docs**.
-
-### Modo desenvolvimento (hot-reload)
-
-```bash
-docker compose -f docker-compose.dev.yml up
-```
+Abra **http://localhost:5173** (a primeira subida instala gems e deps de node, ~2 min).
 
 - Front: http://localhost:5173
 - API:   http://localhost:3000
-- Docs:  http://localhost:5173/api-docs
+- Docs:  http://localhost:5173/api-docs (Swagger UI)
 
-Edições em `api/` ou `web/` refletem ao vivo.
+Edições em `api/` ou `web/` refletem ao vivo (hot-reload via bind mount).
 
 ## Stack
 
@@ -39,19 +26,12 @@ Edições em `api/` ou `web/` refletem ao vivo.
 
 **Frontend** — Vue 3.5, TypeScript, Vite 8, PrimeVue 4 (tema Aura), Pinia 3, vue-i18n, axios.
 
-**Infra** — Docker Compose multi-stage, nginx unprivileged.
-
 ## Testes
 
 ```bash
-# Backend (RSpec — 54 examples)
-cd api && bundle exec rspec
-
-# Frontend (Vitest — 73 examples)
-cd web && pnpm test
-
-# E2E (Playwright — 6 specs)
-cd web && pnpm e2e
+cd api && bundle exec rspec     # RSpec
+cd web && pnpm test             # Vitest
+cd web && pnpm e2e              # Playwright
 ```
 
 Lint e tipos:
@@ -63,7 +43,7 @@ cd web && pnpm lint && pnpm format:check && pnpm type-check
 
 ## API
 
-Base path `/api/v1`. Documentação completa interativa em `/api-docs` (Swagger UI alimentado pelo `swagger.yaml` gerado a partir das specs RSpec).
+Base path `/api/v1`. Documentação completa interativa em `/api-docs`.
 
 | Método | Endpoint            | Descrição                              |
 |--------|---------------------|----------------------------------------|
@@ -74,10 +54,6 @@ Base path `/api/v1`. Documentação completa interativa em `/api-docs` (Swagger 
 | DELETE | `/api/v1/notes/:id` | Remove nota                            |
 
 Mensagens de erro respeitam `Accept-Language` (pt-BR padrão, en suportado).
-
-## Variáveis de ambiente
-
-Veja `.env.example`. As principais já têm defaults sensatos. Apenas `SECRET_KEY_BASE` é obrigatória.
 
 ## Licença
 
