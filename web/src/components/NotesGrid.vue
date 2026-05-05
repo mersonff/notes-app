@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
@@ -8,34 +8,43 @@ import Message from 'primevue/message'
 import Skeleton from 'primevue/skeleton'
 import Paginator, { type PageState } from 'primevue/paginator'
 import NoteCard from './NoteCard.vue'
-import { useNotesStore } from '@/stores/notes'
-import type { Note } from '@/types/note'
+import { useDeleteNoteMutation } from '@/composables/useNotesMutations'
+import type { Note, PaginationMeta } from '@/types/note'
+
+const props = defineProps<{
+  notes: readonly Note[]
+  pagination: PaginationMeta | null
+  loading: boolean
+  loadError: string | null
+  /** When non-empty, the empty state switches from "no notes ever" to "no results". */
+  searchQuery?: string
+}>()
 
 const emit = defineEmits<{
   create: []
   edit: [note: Note]
+  page: [{ page: number; rows: number }]
+  clearSearch: []
 }>()
 
 const { t } = useI18n()
-const store = useNotesStore()
 const confirm = useConfirm()
 const toast = useToast()
 
-onMounted(() => {
-  if (store.notes.length === 0 && !store.loading) {
-    store.fetchPage(1)
-  }
-})
+const deleteMutation = useDeleteNoteMutation()
 
-const totalRecords = computed(() => store.pagination?.count ?? 0)
-const rows = computed(() => store.pagination?.limit ?? 20)
-const first = computed(() => ((store.pagination?.page ?? 1) - 1) * rows.value)
+const totalRecords = computed(() => props.pagination?.count ?? 0)
+const rows = computed(() => props.pagination?.limit ?? 20)
+const first = computed(() => ((props.pagination?.page ?? 1) - 1) * rows.value)
 const showPaginator = computed(() => totalRecords.value > rows.value)
-const showSkeletons = computed(() => store.loading && store.notes.length === 0)
-const showEmpty = computed(() => !store.loading && !store.loadError && store.notes.length === 0)
+const showSkeletons = computed(() => props.loading && props.notes.length === 0)
+const isEmpty = computed(() => !props.loading && !props.loadError && props.notes.length === 0)
+const hasActiveSearch = computed(() => (props.searchQuery ?? '').trim().length > 0)
+const showNoResults = computed(() => isEmpty.value && hasActiveSearch.value)
+const showEmpty = computed(() => isEmpty.value && !hasActiveSearch.value)
 
 function onPage(event: PageState) {
-  store.fetchPage(event.page + 1, event.rows)
+  emit('page', { page: event.page + 1, rows: event.rows })
 }
 
 function confirmDelete(note: Note) {
@@ -48,19 +57,19 @@ function confirmDelete(note: Note) {
     acceptProps: { severity: 'danger' },
     rejectProps: { severity: 'secondary', variant: 'text' },
     accept: async () => {
-      const ok = await store.destroy(note.id)
-      if (ok) {
+      try {
+        await deleteMutation.mutateAsync(note.id)
         toast.add({
           severity: 'success',
           summary: t('toast.deletedTitle'),
           detail: t('toast.deletedDetail'),
           life: 3000
         })
-      } else {
+      } catch (err) {
         toast.add({
           severity: 'error',
           summary: t('toast.errorTitle'),
-          detail: store.submitError ?? t('toast.deleteErrorDetail'),
+          detail: err instanceof Error && err.message ? err.message : t('toast.deleteErrorDetail'),
           life: 4000
         })
       }
@@ -71,12 +80,7 @@ function confirmDelete(note: Note) {
 
 <template>
   <section class="notes-grid-wrapper">
-    <Message
-      v-if="store.loadError"
-      severity="error"
-      :closable="false"
-      data-testid="notes-load-error"
-    >
+    <Message v-if="loadError" severity="error" :closable="false" data-testid="notes-load-error">
       {{ t('list.loadError') }}
     </Message>
 
@@ -91,7 +95,24 @@ function confirmDelete(note: Note) {
       </div>
     </div>
 
-    <!-- Empty state -->
+    <!-- No-results state (search returned nothing) -->
+    <div v-else-if="showNoResults" class="notes-empty" data-testid="notes-no-results">
+      <i class="pi pi-search notes-empty__icon" aria-hidden="true" />
+      <h2 class="notes-empty__title">
+        {{ t('list.noResults.title', { query: searchQuery }) }}
+      </h2>
+      <p class="notes-empty__subtitle">{{ t('list.noResults.subtitle') }}</p>
+      <Button
+        :label="t('actions.clearSearch')"
+        icon="pi pi-times"
+        severity="secondary"
+        variant="text"
+        data-testid="notes-clear-search"
+        @click="emit('clearSearch')"
+      />
+    </div>
+
+    <!-- Empty-list state (no notes ever) -->
     <div v-else-if="showEmpty" class="notes-empty" data-testid="notes-empty">
       <i class="pi pi-inbox notes-empty__icon" aria-hidden="true" />
       <h2 class="notes-empty__title">{{ t('list.empty.title') }}</h2>
@@ -104,23 +125,28 @@ function confirmDelete(note: Note) {
       />
     </div>
 
-    <!-- Cards grid -->
-    <div v-else class="notes-grid" data-testid="notes-grid">
+    <!--
+      Cards grid: TransitionGroup gives us FLIP-style animation —
+      cards fade+rise into the grid, fade+shrink out, and survivors
+      slide to their new positions when others leave (e.g. after a
+      delete or a search filter narrows the result set).
+    -->
+    <TransitionGroup v-else name="card" tag="div" class="notes-grid" data-testid="notes-grid">
       <NoteCard
-        v-for="note in store.notes"
+        v-for="note in notes"
         :key="note.id"
         :note="note"
         @edit="emit('edit', note)"
         @delete="confirmDelete"
       />
-    </div>
+    </TransitionGroup>
 
     <Paginator
       v-if="showPaginator"
       :rows="rows"
       :total-records="totalRecords"
       :first="first"
-      :rows-per-page-options="[6, 12, 24, 48]"
+      :rows-per-page-options="[10, 20, 50, 100]"
       template="FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink RowsPerPageDropdown"
       :current-page-report-template="`{currentPage} / {totalPages}`"
       data-testid="notes-paginator"
@@ -140,6 +166,54 @@ function confirmDelete(note: Note) {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 16px;
+}
+
+/*
+ * TransitionGroup classes (name="card").
+ *   - card-enter-active / card-leave-active: the timing curve.
+ *   - card-enter-from / card-leave-to: the start / end visual states.
+ *   - card-move: applied to surviving siblings during a layout reflow.
+ *   - card-leave-active position:absolute removes the leaving element
+ *     from the grid layout so the others can animate to their new
+ *     spots (the FLIP technique).
+ */
+.card-enter-active,
+.card-leave-active,
+.card-move {
+  transition:
+    opacity 220ms ease,
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.card-enter-from {
+  opacity: 0;
+  transform: translateY(8px) scale(0.97);
+}
+
+.card-leave-to {
+  opacity: 0;
+  transform: scale(0.94);
+}
+
+.card-leave-active {
+  position: absolute;
+  /* Constrain the absolutely-positioned leaving card to the grid track
+   * width so it doesn't snap to its parent's full width during fade-out. */
+  width: calc((100% - 32px) / 3);
+  max-width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-enter-active,
+  .card-leave-active,
+  .card-move {
+    transition: none;
+  }
+  .card-enter-from,
+  .card-leave-to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .note-skeleton {
@@ -165,9 +239,9 @@ function confirmDelete(note: Note) {
   gap: 12px;
   padding: 64px 24px;
   text-align: center;
-  border: 2px dashed var(--p-content-border-color, rgba(0, 0, 0, 0.1));
+  border: 2px dashed var(--p-content-border-color, currentColor);
   border-radius: 12px;
-  background: var(--p-surface-50, rgba(0, 0, 0, 0.02));
+  background: transparent;
 }
 
 .notes-empty__icon {

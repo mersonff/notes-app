@@ -1,5 +1,6 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
+import { PiniaColada } from '@pinia/colada'
 import PrimeVue from 'primevue/config'
 import ToastService from 'primevue/toastservice'
 import ConfirmationService from 'primevue/confirmationservice'
@@ -19,6 +20,7 @@ document.documentElement.lang = i18n.global.locale.value
 const app = createApp(App)
 
 app.use(createPinia())
+app.use(PiniaColada)
 app.use(i18n)
 app.use(PrimeVue, {
   theme: {

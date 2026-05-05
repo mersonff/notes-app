@@ -19,7 +19,9 @@
     "type-check": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@pinia/colada": "^1.2.1",
     "@primeuix/themes": "^2.0.3",
+    "@vueuse/core": "^14.3.0",
     "axios": "^1.16.0",
     "pinia": "^3.0.4",
     "primeicons": "^7.0.0",

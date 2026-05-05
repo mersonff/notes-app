@@ -87,6 +87,62 @@ RSpec.describe "Api::V1::Notes", type: :request do
       end
     end
 
+    context "with a search query" do
+      before do
+        create(:note, title: "Reunião de produto", content: "Pauta")
+        create(:note, title: "Compras", content: "Café e pão")
+        create(:note, title: "Estudo de Pagy", content: nil)
+      end
+
+      it "filters by case-insensitive substring across title and content" do
+        get "/api/v1/notes", params: { search: "café" }
+
+        body = response.parsed_body
+        expect(body["data"].size).to eq(1)
+        expect(body["data"].first["title"]).to eq("Compras")
+        expect(body["pagination"]["count"]).to eq(1)
+      end
+
+      it "matches in the title even when the term is mixed case" do
+        get "/api/v1/notes", params: { search: "REUNIÃO" }
+
+        expect(response.parsed_body["data"].size).to eq(1)
+      end
+
+      it "returns an empty page (200) when no note matches" do
+        get "/api/v1/notes", params: { search: "xyz-nope-#{SecureRandom.hex(4)}" }
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body["data"]).to eq([])
+        expect(response.parsed_body["pagination"]["count"]).to eq(0)
+      end
+
+      it "ignores a blank search and returns all notes" do
+        get "/api/v1/notes", params: { search: "" }
+
+        expect(response.parsed_body["data"].size).to eq(3)
+      end
+
+      it "ignores a whitespace-only search and returns all notes" do
+        get "/api/v1/notes", params: { search: "   " }
+
+        expect(response.parsed_body["data"].size).to eq(3)
+      end
+
+      it "combines search with pagination correctly" do
+        # Seed 12 notes that all match 'foo'; default limit is 20.
+        12.times { |i| create(:note, title: "foo bar #{i}", content: nil) }
+
+        get "/api/v1/notes", params: { search: "foo", limit: 5 }
+        body = response.parsed_body
+        expect(body["data"].size).to eq(5)
+        expect(body["pagination"]).to include("count" => 12, "pages" => 3, "limit" => 5)
+
+        get "/api/v1/notes", params: { search: "foo", limit: 5, page: 3 }
+        expect(response.parsed_body["data"].size).to eq(2)
+      end
+    end
+
     context "with invalid pagination parameters" do
       it "treats page=0 as page 1 (Pagy normalises page to >= 1)" do
         create(:note)

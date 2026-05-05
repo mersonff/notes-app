@@ -1,9 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
-import { setActivePinia, createPinia } from 'pinia'
 import NoteFormDialog from './NoteFormDialog.vue'
-import { useNotesStore } from '@/stores/notes'
+import * as api from '@/api/notes'
+import { ApiError } from '@/api/notes'
 import type { Note } from '@/types/note'
+
+// Mock the network layer; let the real composables (useCreateNoteMutation,
+// useUpdateNoteMutation) run on top of Pinia Colada so we test the dialog
+// against the actual mutation lifecycle that production uses.
+vi.mock('@/api/notes', async () => {
+  const actual = await vi.importActual<typeof import('@/api/notes')>('@/api/notes')
+  return {
+    ...actual,
+    createNote: vi.fn(),
+    updateNote: vi.fn(),
+    deleteNote: vi.fn(),
+    listNotes: vi.fn()
+  }
+})
+
+const mockedCreate = vi.mocked(api.createNote)
+const mockedUpdate = vi.mocked(api.updateNote)
 
 const sampleNote = (overrides: Partial<Note> = {}): Note => ({
   id: 1,
@@ -15,12 +32,7 @@ const sampleNote = (overrides: Partial<Note> = {}): Note => ({
 })
 
 function mountDialog(props: { visible: boolean; note: Note | null }): VueWrapper {
-  // attachTo body so PrimeVue's Dialog teleport target exists and the
-  // rendered content can be queried via the wrapper.
-  return mount(NoteFormDialog, {
-    props,
-    attachTo: document.body
-  })
+  return mount(NoteFormDialog, { props, attachTo: document.body })
 }
 
 function findInput(testId: string): HTMLInputElement | HTMLTextAreaElement | null {
@@ -47,7 +59,8 @@ async function clickByTestId(testId: string) {
 
 describe('NoteFormDialog.vue', () => {
   beforeEach(() => {
-    setActivePinia(createPinia())
+    mockedCreate.mockReset()
+    mockedUpdate.mockReset()
   })
 
   afterEach(() => {
@@ -70,55 +83,49 @@ describe('NoteFormDialog.vue', () => {
       expect(findInput('note-content')?.value).toBe('')
     })
 
-    it('shows the required-title error after submit and does not call store.create', async () => {
-      const wrapper = mountDialog({ visible: true, note: null })
-      const store = useNotesStore()
-      const spy = vi.spyOn(store, 'create')
+    it('shows the required-title error after submit and does not call the API', async () => {
+      mountDialog({ visible: true, note: null })
       await flushPromises()
 
       await clickByTestId('note-save')
 
       expect(document.body.textContent).toContain('Título é obrigatório')
-      expect(spy).not.toHaveBeenCalled()
-      expect(wrapper.emitted('update:visible')).toBeUndefined()
+      expect(mockedCreate).not.toHaveBeenCalled()
     })
 
-    it('calls store.create with normalised payload and closes on success', async () => {
+    it('calls createNote with normalised payload and closes on success', async () => {
       const wrapper = mountDialog({ visible: true, note: null })
-      const store = useNotesStore()
-      const spy = vi
-        .spyOn(store, 'create')
-        .mockResolvedValueOnce(sampleNote({ id: 5, title: 'Nova', content: null }))
+      mockedCreate.mockResolvedValueOnce(sampleNote({ id: 5, title: 'Nova', content: null }))
       await flushPromises()
 
       await setInput('note-title', 'Nova')
       await clickByTestId('note-save')
 
-      expect(spy).toHaveBeenCalledWith({ title: 'Nova', content: null })
+      expect(mockedCreate).toHaveBeenCalledWith({ title: 'Nova', content: null })
       expect(wrapper.emitted('update:visible')?.[0]).toEqual([false])
       expect(wrapper.emitted('saved')).toBeTruthy()
     })
 
     it('sends content as a string when filled', async () => {
       mountDialog({ visible: true, note: null })
-      const store = useNotesStore()
-      const spy = vi.spyOn(store, 'create').mockResolvedValueOnce(sampleNote())
+      mockedCreate.mockResolvedValueOnce(sampleNote())
       await flushPromises()
 
       await setInput('note-title', 'Reunião')
       await setInput('note-content', 'Pauta')
       await clickByTestId('note-save')
 
-      expect(spy).toHaveBeenCalledWith({ title: 'Reunião', content: 'Pauta' })
+      expect(mockedCreate).toHaveBeenCalledWith({ title: 'Reunião', content: 'Pauta' })
     })
 
-    it('keeps the dialog open and surfaces server validation errors', async () => {
+    it('keeps the dialog open and surfaces server-side validation errors', async () => {
       const wrapper = mountDialog({ visible: true, note: null })
-      const store = useNotesStore()
-      vi.spyOn(store, 'create').mockImplementationOnce(async () => {
-        store.validationErrors = { title: ['Título já existe'] }
-        return null
-      })
+      mockedCreate.mockRejectedValueOnce(
+        new ApiError('Validation failed', {
+          status: 422,
+          validationErrors: { title: ['Título já existe'] }
+        })
+      )
       await flushPromises()
 
       await setInput('note-title', 'Reunião')
@@ -130,17 +137,11 @@ describe('NoteFormDialog.vue', () => {
   })
 
   describe('edit mode (note provided)', () => {
-    it('renders the "Editar anotação" header', async () => {
-      mountDialog({ visible: true, note: sampleNote() })
-      await flushPromises()
-
-      expect(document.body.textContent).toContain('Editar anotação')
-    })
-
-    it('pre-fills inputs with the note values', async () => {
+    it('renders the "Editar anotação" header and pre-fills inputs', async () => {
       mountDialog({ visible: true, note: sampleNote({ title: 'Original', content: 'Body' }) })
       await flushPromises()
 
+      expect(document.body.textContent).toContain('Editar anotação')
       expect(findInput('note-title')?.value).toBe('Original')
       expect(findInput('note-content')?.value).toBe('Body')
     })
@@ -152,39 +153,33 @@ describe('NoteFormDialog.vue', () => {
       expect(findInput('note-content')?.value).toBe('')
     })
 
-    it('calls store.update with the id and payload on save', async () => {
+    it('calls updateNote with id+payload and closes on success', async () => {
       const wrapper = mountDialog({ visible: true, note: sampleNote({ id: 42 }) })
-      const store = useNotesStore()
-      const spy = vi
-        .spyOn(store, 'update')
-        .mockResolvedValueOnce(sampleNote({ id: 42, title: 'Changed' }))
+      mockedUpdate.mockResolvedValueOnce(sampleNote({ id: 42, title: 'Changed' }))
       await flushPromises()
 
       await setInput('note-title', 'Changed')
       await clickByTestId('note-save')
 
-      expect(spy).toHaveBeenCalledWith(42, { title: 'Changed', content: 'Pauta' })
+      expect(mockedUpdate).toHaveBeenCalledWith(42, { title: 'Changed', content: 'Pauta' })
       expect(wrapper.emitted('update:visible')?.[0]).toEqual([false])
     })
 
-    it('does not call store.create in edit mode', async () => {
+    it('does not call createNote in edit mode', async () => {
       mountDialog({ visible: true, note: sampleNote({ id: 42 }) })
-      const store = useNotesStore()
-      const createSpy = vi.spyOn(store, 'create')
-      vi.spyOn(store, 'update').mockResolvedValueOnce(sampleNote())
+      mockedUpdate.mockResolvedValueOnce(sampleNote())
       await flushPromises()
 
       await clickByTestId('note-save')
 
-      expect(createSpy).not.toHaveBeenCalled()
+      expect(mockedCreate).not.toHaveBeenCalled()
     })
 
-    it('clears inputs when closed and reopened in create mode', async () => {
+    it('clears inputs when reopened in create mode after editing', async () => {
       const wrapper = mountDialog({ visible: true, note: sampleNote({ title: 'Old' }) })
       await flushPromises()
       expect(findInput('note-title')?.value).toBe('Old')
 
-      // Close + reopen as create
       await wrapper.setProps({ visible: false, note: null })
       await flushPromises()
       await wrapper.setProps({ visible: true, note: null })
@@ -195,18 +190,15 @@ describe('NoteFormDialog.vue', () => {
   })
 
   describe('cancel', () => {
-    it('closes the dialog without calling any store action', async () => {
+    it('closes the dialog without calling the API', async () => {
       const wrapper = mountDialog({ visible: true, note: null })
-      const store = useNotesStore()
-      const createSpy = vi.spyOn(store, 'create')
-      const updateSpy = vi.spyOn(store, 'update')
       await flushPromises()
 
       await clickByTestId('note-cancel')
 
       expect(wrapper.emitted('update:visible')?.[0]).toEqual([false])
-      expect(createSpy).not.toHaveBeenCalled()
-      expect(updateSpy).not.toHaveBeenCalled()
+      expect(mockedCreate).not.toHaveBeenCalled()
+      expect(mockedUpdate).not.toHaveBeenCalled()
     })
   })
 

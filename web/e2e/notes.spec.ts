@@ -161,4 +161,51 @@ test.describe('Notes app — CRUD', () => {
     await expect(page.getByText('Nenhuma anotação ainda')).toBeVisible()
     await expect(page.getByTestId('notes-empty-cta')).toBeVisible()
   })
+
+  test('search: filters by typing (debounced) and clears via the X button', async ({ page }) => {
+    await page.goto('/')
+
+    // Seed: create a note with a unique title we'll search for
+    const stamp = Date.now()
+    const uniqueTitle = `E2Esearch${stamp}`
+    await openCreateDialog(page)
+    await fillNote(page, uniqueTitle, 'searchable content')
+    await saveNote(page)
+    await expect(page.getByText('Anotação criada')).toBeVisible()
+
+    // Type the unique title — wait past the 300ms debounce
+    await page.getByTestId('notes-search').fill(uniqueTitle)
+
+    // Card matching the term should be visible; assertion's auto-retry
+    // covers the debounce window without needing waitForTimeout.
+    const matchingCard = page.locator('[data-testid="note-card"]').filter({ hasText: uniqueTitle })
+    await expect(matchingCard).toBeVisible()
+
+    // And the count label should reflect "1 resultado"
+    await expect(page.getByTestId('notes-count')).toContainText('resultado')
+
+    // Clear via the X button — input empties, all cards return
+    await page.getByTestId('notes-search-clear').click()
+    await expect(page.getByTestId('notes-search')).toHaveValue('')
+  })
+
+  test('search: shows the no-results state when nothing matches', async ({ page }) => {
+    await page.goto('/')
+
+    const noMatchTerm = `nope-${Date.now()}-xyz`
+    await page.getByTestId('notes-search').fill(noMatchTerm)
+
+    // No-results empty state appears with the query echoed back
+    await expect(page.getByTestId('notes-no-results')).toBeVisible()
+    await expect(page.getByText(`Nenhum resultado para "${noMatchTerm}"`)).toBeVisible()
+    await expect(page.getByTestId('notes-clear-search')).toBeVisible()
+
+    // Regular "no notes" empty state must NOT appear (we have notes, just no match)
+    await expect(page.getByTestId('notes-empty')).not.toBeVisible()
+
+    // Clicking the clear button in the no-results state restores the list
+    await page.getByTestId('notes-clear-search').click()
+    await expect(page.getByTestId('notes-search')).toHaveValue('')
+    await expect(page.getByTestId('notes-no-results')).not.toBeVisible()
+  })
 })

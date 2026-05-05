@@ -9,7 +9,8 @@ module Api
       before_action :load_note, only: %i[show update destroy]
 
       def index
-        @pagy, notes = pagy(Note.recent_first, page: safe_page, limit: safe_limit)
+        scope = Note.search(params[:search]).recent_first
+        @pagy, notes = pagy(scope, page: safe_page, limit: safe_limit)
 
         render json: {
           data: notes.map { |note| serialize(note) },

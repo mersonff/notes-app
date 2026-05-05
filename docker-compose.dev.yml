@@ -1,0 +1,54 @@
+name: notes-app-dev
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: notes_app_development
+    volumes:
+      - db-dev-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.dev
+    environment:
+      RAILS_ENV: development
+      DATABASE_URL: postgres://postgres:postgres@db:5432/notes_app_development
+      TEST_DATABASE_URL: postgres://postgres:postgres@db:5432/notes_app_test
+      RAILS_LOG_TO_STDOUT: "true"
+      CORS_ORIGINS: http://localhost:5173
+    ports:
+      - "${DEV_API_PORT:-3000}:3000"
+    volumes:
+      - ./api:/rails
+      - bundle-cache:/usr/local/bundle
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "corepack enable && corepack prepare pnpm@10.12.3 --activate && pnpm install && pnpm dev --host 0.0.0.0"
+    environment:
+      VITE_API_URL: http://api:3000
+    ports:
+      - "${DEV_WEB_PORT:-5173}:5173"
+    volumes:
+      - ./web:/app
+      - web-node-modules:/app/node_modules
+    depends_on:
+      - api
+
+volumes:
+  db-dev-data:
+  bundle-cache:
+  web-node-modules:

@@ -43,11 +43,19 @@ function wrap(err: unknown, fallbackMessage: string): ApiError {
 export interface ListParams {
   page?: number
   limit?: number
+  search?: string
 }
 
 export async function listNotes(params: ListParams = {}): Promise<NotesPage> {
+  // Drop `search` when blank/whitespace so we don't send `?search=` as
+  // a no-op (which would needlessly invalidate cached pages).
+  const cleaned: ListParams = { page: params.page, limit: params.limit }
+  if (params.search && params.search.trim().length > 0) {
+    cleaned.search = params.search.trim()
+  }
+
   try {
-    const { data } = await apiClient.get<NotesPage>('/notes', { params })
+    const { data } = await apiClient.get<NotesPage>('/notes', { params: cleaned })
     return data
   } catch (err) {
     throw wrap(err, 'Could not list notes')
